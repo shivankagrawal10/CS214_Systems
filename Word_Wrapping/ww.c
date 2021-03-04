@@ -44,7 +44,33 @@ strbuf_t* read_word(strbuf_t* currword, char currletter){
 
 int main(int argc,char* argv[argc+1]){
   
-  int file = open(argv[2],O_RDONLY);
+  
+  //Edge Case-if arguments are wrong
+  if(argc<2)
+  {
+     return EXIT_FAILURE;
+  }
+  if(isdigit(argv[1][0])==0)
+  {
+     return EXIT_FAILURE;
+  }
+
+  int file;
+
+  if(argc==2)
+  {
+     file=0;
+  }
+  else
+  {
+     file = open(argv[2],O_RDONLY);
+  }
+
+  if(file==-1)
+  {
+     perror("Error: ");
+     return EXIT_FAILURE;
+  }
   
   wrap(file,atoi(argv[1]));
   
