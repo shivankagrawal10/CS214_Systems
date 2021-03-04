@@ -4,5 +4,5 @@
 #endif
 
 
-int wrap(int,int);
+int wrap(int,size_t);
 strbuf_t* read_word(strbuf_t*, char);
