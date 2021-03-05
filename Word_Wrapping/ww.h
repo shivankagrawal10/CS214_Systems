@@ -5,4 +5,6 @@
 
 
 int wrap(int,size_t);
-strbuf_t* read_word(strbuf_t*, char);
+strbuf_t* read_word(strbuf_t*, char, int*);
+void write_word(strbuf_t*, int*, size_t,int, int, int,int*);
+

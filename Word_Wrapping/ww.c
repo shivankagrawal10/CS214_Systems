@@ -4,6 +4,9 @@
 #include<fcntl.h>
 #include<ctype.h>
 #include "ww.h"
+#include <dirent.h>
+#include <sys/types.h>
+
 
 #define BUFFSIZE 2
 
@@ -13,32 +16,133 @@ int wrap(int fd, size_t len){
   sb_init(currword,len);
   int num_read = 1;
   int offset = 0;
+  int outcount=0;
+  int newlineflag=0;
+  int started=0;
+  int isfirstword=1;
+  int whitespaceflag=0;
+  int fail=0;
   while(num_read>0){
     num_read = pread(fd,buff,BUFFSIZE,offset);
     offset += num_read;
-    printf("%d \n",num_read);
+    //printf("%d \n",num_read);
     for(int i=0; i<num_read; i++){
-      read_word(currword,buff[i]);
-      if(isspace(buff[i])&& currword->used !=0 ){
-	printf("%s \n",currword->data);
-	//write_word();
-	sb_destroy(currword);
-	sb_init(currword,len);
+      read_word(currword,buff[i],&started);
+      if(isspace(buff[i])){
+            //printf("%s \n",currword->data);
+
+            if(buff[i]=='\n')
+            {
+               newlineflag++;
+               whitespaceflag=0;
+                 
+            }
+            else
+            {
+              whitespaceflag++;
+              newlineflag=0;
+            }
+            if(started!=0)
+            {
+              if((whitespaceflag==1 || newlineflag!=0) && (whitespaceflag!=1 || newlineflag==0))
+              {
+                write_word(currword,&outcount,len,newlineflag,started,isfirstword, &fail);
+              }
+              
+            isfirstword=0;
+            sb_destroy(currword);
+            sb_init(currword,len);
+            }
+      }
+      //normal char
+      else
+      {
+           newlineflag=0;
+           whitespaceflag=0;
       }
     }
   }
+  write_word(currword,&outcount,len,newlineflag,started,isfirstword, &fail);
   sb_destroy(currword);
   free(buff);
   free(currword);
-  return 0;
+  return fail;
 }
 
-strbuf_t* read_word(strbuf_t* currword, char currletter){
+strbuf_t* read_word(strbuf_t* currword, char currletter, int *started){
   if(isspace(currletter) && currword -> used == 0){
     return currword;
   }
-  sb_append(currword,currletter);
+  if(!isspace(currletter))
+  {
+    *started=1;
+    sb_append(currword,currletter);
+  }
   return currword;
+
+}
+
+void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag, int started, int isfirstword, int *fail){
+      
+      int sizewritten=*outcount;
+      int currsize=currword->used;
+      int added=1;
+      if(newlineflag==2)
+      {
+        char parabuf[2];
+        parabuf[0]='\n';
+        
+        parabuf[1]='\n';
+        write(1,parabuf,2);
+        sizewritten=0;
+      }
+      if(sizewritten==0 || isfirstword==1)
+      {
+        added=0;
+      }
+      
+      if(sizewritten+currsize+added<=limit)
+      {
+        if(sizewritten!=0 && isfirstword==0 && currword->used!=0)
+        {
+        //putting prior space
+         char tempspace[1];
+         tempspace[0]=' ';
+         write(1,tempspace,1);
+        }
+        //writing word
+
+        char *tempword=currword->data;
+        write(1,tempword,currsize);
+        *outcount=sizewritten+currsize+added;
+      }
+      //doesn't fit
+      else
+      {
+         //skip line
+         if(newlineflag!=2)
+         {
+         char tempnewline[1];
+         tempnewline[0]='\n';
+         write(1,tempnewline,1);
+         }
+         if(currsize>limit)
+         {
+           *fail=1;
+           char *tempword=currword->data;
+           write(1,tempword,currsize);
+           char tempnewline[1];
+           tempnewline[0]='\n';
+           write(1,tempnewline,1);
+           *outcount=0;
+           return;
+         }
+
+        char *tempword=currword->data;
+        write(1,tempword,currsize);
+        *outcount=currsize;
+      }
+      
 
 }
 
@@ -72,7 +176,12 @@ int main(int argc,char* argv[argc+1]){
      return EXIT_FAILURE;
   }
   
-  wrap(file,atoi(argv[1]));
+  int retval=wrap(file,atoi(argv[1]));
+
+  if(retval==1)
+  {
+    return EXIT_FAILURE;
+  }
   
   close(file);
   
