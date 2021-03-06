@@ -11,3 +11,6 @@ strbuf.o: strbuf.c
 
 ww: strbuf.o ww.o
 	$(CC) $(CFLAGS) -o ww strbuf.o ww.o -g
+
+clean:
+	rm -f *.o
