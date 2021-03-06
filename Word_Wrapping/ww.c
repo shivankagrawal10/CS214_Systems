@@ -6,6 +6,7 @@
 #include "ww.h"
 #include <dirent.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 
 #define BUFFSIZE 2
@@ -157,7 +158,7 @@ int isdirect(char *name) {
        return 2;
     }
 
-    return S_ISDIR(path_stat.st_mode);
+    return S_ISDIR(data.st_mode);
 
 
 }
@@ -176,6 +177,11 @@ int main(int argc,char* argv[argc+1]){
   }
   
   int argtype=isdirect(argv[2]);
+
+  if(argc==2)
+  {
+    argtype=0;
+  }
   
   if(argtype==2)
   {
@@ -221,14 +227,14 @@ int main(int argc,char* argv[argc+1]){
      }
      struct dirent *de;
      
-     while ((de = readdir(dirp))) {
+     while ((de = readdir(directptr))) {
          
          char type=de->d_type;
          if(type==DT_REG)
          {
             //open up file
-            char *inputfile=de->d_name;
-            int filedirect=open(inputfile,O_RDONLY);
+            //char *inputfile=de->d_name;
+            //int filedirect=open(inputfile,O_RDONLY);
             //create new file
 
             //call write on it
