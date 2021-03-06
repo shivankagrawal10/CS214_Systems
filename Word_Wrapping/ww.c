@@ -146,6 +146,22 @@ void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag
 
 }
 
+int isdirect(char *name) {
+    
+    struct stat data;
+    int err=stat(name,&data);
+    
+    if(err!=0)
+    {
+       perror(name);
+       return 2;
+    }
+
+    return S_ISDIR(path_stat.st_mode);
+
+
+}
+
 int main(int argc,char* argv[argc+1]){
   
   
@@ -158,32 +174,78 @@ int main(int argc,char* argv[argc+1]){
   {
      return EXIT_FAILURE;
   }
-
-  int file;
-
-  if(argc==2)
+  
+  int argtype=isdirect(argv[2]);
+  
+  if(argtype==2)
   {
-     file=0;
-  }
-  else
-  {
-     file = open(argv[2],O_RDONLY);
-  }
-
-  if(file==-1)
-  {
-     perror("Error: ");
      return EXIT_FAILURE;
   }
-  
-  int retval=wrap(file,atoi(argv[1]));
-
-  if(retval==1)
+  //normal file
+  if(argtype==0)
   {
-    return EXIT_FAILURE;
+        int file;
+
+        if(argc==2)
+        {
+          file=0;
+        }
+        else
+        {
+          file = open(argv[2],O_RDONLY);
+        }
+
+        if(file==-1)
+        {
+          perror("Error: ");
+          return EXIT_FAILURE;
+        }
+        
+        int retval=wrap(file,atoi(argv[1]));
+
+        if(retval==1)
+        {
+          return EXIT_FAILURE;
+        }
+        close(file);
   }
+  //directory
+  else if(argtype==1)
+  {
+     DIR * directptr=opendir(argv[2]);
+
+     if(directptr==NULL)
+     {
+       //maybe print what problem is here
+       return EXIT_FAILURE;
+     }
+     struct dirent *de;
+     
+     while ((de = readdir(dirp))) {
+         
+         char type=de->d_type;
+         if(type==DT_REG)
+         {
+            //open up file
+            char *inputfile=de->d_name;
+            int filedirect=open(inputfile,O_RDONLY);
+            //create new file
+
+            //call write on it
+
+         }
+         //else ignore subdirectories
+     }
+
+     closedir(directptr);
+  }
+
+
+
+
   
-  close(file);
+  
+  
   
   return EXIT_SUCCESS;
 }
