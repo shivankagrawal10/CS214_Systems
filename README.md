@@ -1,7 +1,7 @@
 
 # Project 1-CS 214 #
 
-# Names and NetID's:# 
+# Names and NetID's:  
 
 Ameel Jani- aj580
 Shivank Agrawal-sa1461
