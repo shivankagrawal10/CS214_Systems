@@ -237,7 +237,7 @@ int main(int argc,char* argv[argc+1])
                 return EXIT_FAILURE;
             }
             close(file);
-    
+        }
         //directory
         else if(argtype==1)
         {
@@ -265,7 +265,6 @@ int main(int argc,char* argv[argc+1])
                 }
                 //else ignore subdirectories
             }
-
             closedir(directptr);
         }
     }
