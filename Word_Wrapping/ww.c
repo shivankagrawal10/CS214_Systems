@@ -1,8 +1,8 @@
-#include<stdlib.h>
-#include<stdio.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
-#include<fcntl.h>
-#include<ctype.h>
+#include <fcntl.h>
+#include <ctype.h>
 #include "ww.h"
 #include <dirent.h>
 #include <sys/types.h>
@@ -156,12 +156,16 @@ int isdirect(char *name)
 }
 
 int main(int argc,char* argv[argc+1]){
-    //Edge Case-if arguments are wrong
-    if(argc<2)
+    //returns EXIT_FAILURE if 1 or 2 arguments not given
+    int num_arg = argc-1;
+    if(num_arg!=1 and num_arg!=2)
     {
         return EXIT_FAILURE;
     }
-    if(isdigit(argv[1][0])==0)
+
+    //returns EXIT_FAILURE if argument 1 (line length) is not a number or less than equal to 0
+    int line_len = atoi(argv[1]);
+    if(line_len<=0)
     {
         return EXIT_FAILURE;
     }
