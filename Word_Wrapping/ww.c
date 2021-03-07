@@ -92,6 +92,7 @@ strbuf_t* read_word(strbuf_t* currword, char currletter, int *started)
     return currword;
 }
 
+//
 void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag, int started, int isfirstword, int *fail)
 {    
     int sizewritten=*outcount;
@@ -133,6 +134,7 @@ void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag
             tempnewline[0]='\n';
             write(1,tempnewline,1);
         }
+        // if word is bigger than line length - writes word in own line and marks failure flag
         if(currsize>limit)
         {
             *fail=1;
@@ -144,9 +146,9 @@ void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag
             *outcount=0;
             return;
         }
-    char *tempword=currword->data;
-    write(1,tempword,currsize);
-    *outcount=currsize;
+        char *tempword=currword->data;
+        write(1,tempword,currsize);
+        *outcount=currsize;
     }
 }
 
