@@ -3,15 +3,16 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <ctype.h>
-#include "ww.h"
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "ww.h"
 
 
 #define BUFFSIZE 2
 
-int wrap(int fd, size_t len){
+int wrap(int fd, size_t len)
+{
     char* buff= malloc(BUFFSIZE);
     strbuf_t* currword= malloc(sizeof(strbuf_t));
     sb_init(currword,len);
@@ -23,7 +24,8 @@ int wrap(int fd, size_t len){
     int isfirstword=1;
     int whitespaceflag=0;
     int fail=0;
-    while(num_read>0){
+    while(num_read>0)
+    {
         // reads char from file into buffer (size specified by macro)
 	    num_read = pread(fd,buff,BUFFSIZE,offset);
 	    offset += num_read;
@@ -32,9 +34,9 @@ int wrap(int fd, size_t len){
 	    {
             //adds nonspace char to currword strbuf 
             read_word(currword,buff[i],&started);
-            // handles when buffer char is space character
-            if(isspace(buff[i])){
-                //printf("%s \n",currword->data);
+            //space character
+            if(isspace(buff[i]))
+            {
                 if(buff[i]=='\n')
                 {
                     newlineflag++;
@@ -45,8 +47,10 @@ int wrap(int fd, size_t len){
                     whitespaceflag++;
                     newlineflag=0;
                 }
+                //checks whether first word of file
                 if(started!=0)
                 {
+                    //writes word to output when only encountering 1 space character
                     if((whitespaceflag==1 || newlineflag!=0) && (whitespaceflag!=1 || newlineflag==0))
                     {
                         write_word(currword,&outcount,len,newlineflag,started,isfirstword, &fail);
@@ -64,6 +68,7 @@ int wrap(int fd, size_t len){
             }
         }
     }
+    // (DISCUSS - may end with space character) adding last word in case no space character found
     write_word(currword,&outcount,len,newlineflag,started,isfirstword, &fail);
     sb_destroy(currword);
     free(buff);
@@ -73,10 +78,12 @@ int wrap(int fd, size_t len){
 
 strbuf_t* read_word(strbuf_t* currword, char currletter, int *started)
 {
+    /* // (REVIEW): NOT NEEDED
     if(isspace(currletter) && currword -> used == 0)
     {
         return currword;
     }
+    */
     if(!isspace(currletter))
     {
         *started=1;
@@ -143,6 +150,7 @@ void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag
     }
 }
 
+//returns 0 if file, 1 if directory, 2 if file/directory not found
 int isdirect(char *name) 
 {
     struct stat data;
@@ -155,89 +163,111 @@ int isdirect(char *name)
     return S_ISDIR(data.st_mode);
 }
 
-int main(int argc,char* argv[argc+1]){
-    //returns EXIT_FAILURE if 1 or 2 arguments not given
+int main(int argc,char* argv[argc+1])
+{
+    //exits if 1 or 2 arguments not given
     int num_arg = argc-1;
-    if(num_arg!=1 and num_arg!=2)
+    if(num_arg!=1 && num_arg!=2)
     {
         return EXIT_FAILURE;
     }
 
-    //returns EXIT_FAILURE if argument 1 (line length) is not a number or less than equal to 0
+    //exits if line length is not a number or less than equal to 0
     int line_len = atoi(argv[1]);
     if(line_len<=0)
     {
         return EXIT_FAILURE;
     }
-    
-    int argtype=isdirect(argv[2]);
 
-    if(argc==2)
+    //If 1 argument provided - Program reads from stdin 
+    if(num_arg==1)
     {
-        argtype=0;
+        int fd = 0;
+        int retval=wrap(fd,line_len);
+            if(retval==1)
+            {
+                return EXIT_FAILURE;
+            }
     }
-    
-    if(argtype==2)
-    {
-        return EXIT_FAILURE;
-    }
-    //normal file
-    if(argtype==0)
-    {
-        int file;
 
+    //If 2 arguments provided - Program checks for files/directory
+    else
+    {
+        //checks to see if valid file/directory
+        int argtype=isdirect(argv[2]);
+
+        /* (REVIEW): NOT NEEDED
         if(argc==2)
         {
-          file=0;
+            argtype=0;
         }
-        else
-        {
-          file = open(argv[2],O_RDONLY);
-        }
-
-        if(file==-1)
-        {
-          perror("Error: ");
-          return EXIT_FAILURE;
-        }
+        */
         
-        int retval=wrap(file,atoi(argv[1]));
-
-        if(retval==1)
+        //exits program if file/directory not found
+        if(argtype==2)
         {
-          return EXIT_FAILURE;
-        }
-        close(file);
-  }
-  //directory
-    else if(argtype==1)
-    {
-        DIR * directptr=opendir(argv[2]);
-
-        if(directptr==NULL)
-        {
-            //maybe print what problem is here
             return EXIT_FAILURE;
         }
-        struct dirent *de;
-     
-        while ((de = readdir(directptr))) 
-        { 
-            char type=de->d_type;
-            if(type==DT_REG)
+
+        //normal file
+        if(argtype==0)
+        {
+            int file;
+            /* //(REVIEW): NOT NEEDED
+            if(argc==2)
             {
-                //open up file
-                //char *inputfile=de->d_name;
-                //int filedirect=open(inputfile,O_RDONLY);
-                //create new file
-
-                //call write on it
-
+                file=0;
             }
-               //else ignore subdirectories
-        }
+            else
+            {
+                file = open(argv[2],O_RDONLY);
+            }
+            */
+            file = open(argv[2],O_RDONLY);
+            if(file==-1)
+            {
+                perror("Error: ");
+                return EXIT_FAILURE;
+            }
+            
+            int retval=wrap(file,line_len);
 
-        closedir(directptr);
+            if(retval==1)
+            {
+                return EXIT_FAILURE;
+            }
+            close(file);
+    
+        //directory
+        else if(argtype==1)
+        {
+            DIR * directptr=opendir(argv[2]);
+
+            if(directptr==NULL)
+            {
+                //maybe print what problem is here
+                return EXIT_FAILURE;
+            }
+            struct dirent *de;
+        
+            while ((de = readdir(directptr))) 
+            { 
+                char type=de->d_type;
+                if(type==DT_REG)
+                {
+                    //open up file
+                    //char *inputfile=de->d_name;
+                    //int filedirect=open(inputfile,O_RDONLY);
+                    //create new file
+
+                    //call write on it
+
+                }
+                //else ignore subdirectories
+            }
+
+            closedir(directptr);
+        }
     }
   return EXIT_SUCCESS;
 }
