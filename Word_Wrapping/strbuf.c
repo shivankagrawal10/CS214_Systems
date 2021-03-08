@@ -24,21 +24,21 @@ void sb_destroy(strbuf_t *L)
 
 int sb_append(strbuf_t *L, int item)
 {
-    if (L->used == L->length) {
-	size_t size = L->length * 2;
-	char *p = realloc(L->data, sizeof(int) * size);
-	if (!p) return 1;
+  if (L->used == L->length) {
+    size_t size = L->length * 2;
+    char *p = realloc(L->data, sizeof(int) * size);
+    if (!p) return 1;
 
-	L->data = p;
-	L->length = size;
+    L->data = p;
+    L->length = size;
 
-	if (DEBUG) printf("Increased size to %lu\n", size);
-    }
-    L=remove_null(L);
-    L->data[L->used] = item;
-    ++L->used;
-    L=update_null(L);
-    return 0;
+    if (DEBUG) printf("Increased size to %lu\n", size);
+  }
+  L=remove_null(L);
+  L->data[L->used] = item;
+  ++L->used;
+  L=update_null(L);
+  return 0;
 }
 
 
@@ -90,7 +90,9 @@ int sb_insert(strbuf_t *L, int index, char item)
 
 int sb_concat(strbuf_t* L, char *str)
 {
-  int si=sizeof(str)-1;
+  int si=len(str);
+  //printf("%s \n",str);
+  //printf("%d \n",si);
   if(si<=0 || L==0){
     return 1;
   }
@@ -100,6 +102,15 @@ int sb_concat(strbuf_t* L, char *str)
   return 0;
 }
 
+int len(char* str)
+{
+  int i =0;
+  while(str[i]!='\0')
+  {
+    i+=1;
+  }
+  return i;
+}
 strbuf_t* sb_expand(strbuf_t *L, int index){
   size_t newsize = 2*L->length;
   if ((index+1)>newsize*sizeof(char)){

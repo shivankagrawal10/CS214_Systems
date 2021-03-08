@@ -4,8 +4,8 @@
 #endif
 
 
-int wrap(int,size_t, int);
+int wrap(int,size_t,int);
 strbuf_t* read_word(strbuf_t*, char, int*);
-void write_word(strbuf_t*, int*, size_t,int, int, int,int*, int);
+void write_word(int,strbuf_t*, int*, size_t,int, int, int,int*);
 int isdirect(char *);
 
