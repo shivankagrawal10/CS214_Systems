@@ -71,6 +71,7 @@ int wrap(int fd_read, size_t len, int fd_write)
     }
     // (DISCUSS - may end with space character) adding last word in case no space character found
     write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail);
+    write(fd_write,"\n",1);
     sb_destroy(currword);
     free(buff);
     free(currword);
