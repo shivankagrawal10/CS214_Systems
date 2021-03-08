@@ -4,6 +4,7 @@ typedef struct {
   char *data;
 } strbuf_t;
 
+int len(char*);
 int sb_init(strbuf_t *, size_t);
 void sb_destroy(strbuf_t *);
 int sb_append(strbuf_t *, int);

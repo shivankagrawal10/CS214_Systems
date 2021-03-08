@@ -6,12 +6,13 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <string.h>
 #include "ww.h"
 
 
 #define BUFFSIZE 2
 
-int wrap(int fd, size_t len)
+int wrap(int fd_read, size_t len, int fd_write)
 {
     char* buff= malloc(BUFFSIZE);
     strbuf_t* currword= malloc(sizeof(strbuf_t));
@@ -27,7 +28,7 @@ int wrap(int fd, size_t len)
     while(num_read>0)
     {
         // reads char from file into buffer (size specified by macro)
-	    num_read = pread(fd,buff,BUFFSIZE,offset);
+	    num_read = pread(fd_read,buff,BUFFSIZE,offset);
 	    offset += num_read;
 	    // Iterating through buffer
 	    for(int i=0; i<num_read; i++)
@@ -53,7 +54,7 @@ int wrap(int fd, size_t len)
                     //writes word to output when only encountering 1 space character
                     if((whitespaceflag==1 || newlineflag!=0) && (whitespaceflag!=1 || newlineflag==0))
                     {
-                        write_word(currword,&outcount,len,newlineflag,started,isfirstword, &fail);
+                        write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail);
                     }
                     isfirstword=0;
                     sb_destroy(currword);
@@ -69,7 +70,7 @@ int wrap(int fd, size_t len)
         }
     }
     // (DISCUSS - may end with space character) adding last word in case no space character found
-    write_word(currword,&outcount,len,newlineflag,started,isfirstword, &fail);
+    write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail);
     sb_destroy(currword);
     free(buff);
     free(currword);
@@ -93,7 +94,7 @@ strbuf_t* read_word(strbuf_t* currword, char currletter, int *started)
 }
 
 //
-void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag, int started, int isfirstword, int *fail)
+void write_word(int fd_write, strbuf_t* currword, int *outcount, size_t limit, int newlineflag, int started, int isfirstword, int *fail)
 {    
     int sizewritten=*outcount;
     int currsize=currword->used;
@@ -103,7 +104,7 @@ void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag
         char parabuf[2];
         parabuf[0]='\n';    
         parabuf[1]='\n';
-        write(1,parabuf,2);
+        write(fd_write,parabuf,2);
         sizewritten=0;
     }
     if(sizewritten==0 || isfirstword==1)
@@ -117,11 +118,11 @@ void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag
             //putting prior space
             char tempspace[1];
             tempspace[0]=' ';
-            write(1,tempspace,1);
+            write(fd_write,tempspace,1);
         }
         //writing word
         char *tempword=currword->data;
-        write(1,tempword,currsize);
+        write(fd_write,tempword,currsize);
         *outcount=sizewritten+currsize+added;
     }
     //doesn't fit
@@ -132,22 +133,22 @@ void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag
         {
             char tempnewline[1];
             tempnewline[0]='\n';
-            write(1,tempnewline,1);
+            write(fd_write,tempnewline,1);
         }
         // if word is bigger than line length - writes word in own line and marks failure flag
         if(currsize>limit)
         {
             *fail=1;
             char *tempword=currword->data;
-            write(1,tempword,currsize);
+            write(fd_write,tempword,currsize);
             char tempnewline[1];
             tempnewline[0]='\n';
-            write(1,tempnewline,1);
+            write(fd_write,tempnewline,1);
             *outcount=0;
             return;
         }
         char *tempword=currword->data;
-        write(1,tempword,currsize);
+        write(fd_write,tempword,currsize);
         *outcount=currsize;
     }
 }
@@ -185,7 +186,7 @@ int main(int argc,char* argv[argc+1])
     if(num_arg==1)
     {
         int fd = 0;
-        int retval=wrap(fd,line_len);
+        int retval=wrap(fd,line_len,1);
             if(retval==1)
             {
                 return EXIT_FAILURE;
@@ -232,7 +233,7 @@ int main(int argc,char* argv[argc+1])
                 return EXIT_FAILURE;
             }
             
-            int retval=wrap(file,line_len);
+            int retval=wrap(file,line_len,1);
 
             if(retval==1)
             {
@@ -243,7 +244,10 @@ int main(int argc,char* argv[argc+1])
         //directory
         else if(argtype==1)
         {
-            DIR * directptr=opendir(argv[2]);
+            strbuf_t* dir= malloc(sizeof(strbuf_t));
+            sb_init(dir,10);
+            sb_concat(dir,argv[2]);
+            DIR * directptr=opendir(dir->data);
 
             if(directptr==NULL)
             {
@@ -258,15 +262,43 @@ int main(int argc,char* argv[argc+1])
                 if(type==DT_REG)
                 {
                     //open up file
-                    //char *inputfile=de->d_name;
-                    //int filedirect=open(inputfile,O_RDONLY);
+                    char *inputfile=de->d_name;
+                    strbuf_t* curr_read= malloc(sizeof(strbuf_t));
+                    strbuf_t* curr_write= malloc(sizeof(strbuf_t));
+                    char* addon = "wrap.";
+                    sb_init(curr_read,10);
+                    sb_init(curr_write,10);
+                    sb_concat(curr_write,dir->data);
+                    sb_concat(curr_read,dir->data);
+                    sb_concat(curr_write,addon);
+                    if(*inputfile=='.'|| strstr(inputfile,addon)!=NULL)
+                    {
+                        continue;
+                    }
+                    sb_concat(curr_write,inputfile);
+                    sb_concat(curr_read,inputfile);
+                    //printf("%s \n",curr_read->data);
+                    //printf("%s \n",curr_write->data);
+                    
+                    int fd_read=open(curr_read->data,O_RDONLY);
                     //create new file
-
+                    //addon = strcat(addon,inputfile);
+                    int fd_write=open(curr_write->data,O_RDWR|O_CREAT|O_TRUNC,0777);
                     //call write on it
-
+                    wrap(fd_read,line_len,fd_write);
+                    close(fd_read);
+                    close(fd_write);
+                    
+                    
+                    sb_destroy(curr_write);
+                    sb_destroy(curr_read);
+                    free(curr_write);
+                    free(curr_read);
                 }
+                
                 //else ignore subdirectories
             }
+            free(dir);
             closedir(directptr);
         }
     }
