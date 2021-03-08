@@ -11,7 +11,7 @@
 
 #define BUFFSIZE 2
 
-int wrap(int fd, size_t len)
+int wrap(int fd, size_t len, int outputfile)
 {
     char* buff= malloc(BUFFSIZE);
     strbuf_t* currword= malloc(sizeof(strbuf_t));
@@ -53,7 +53,7 @@ int wrap(int fd, size_t len)
                     //writes word to output when only encountering 1 space character
                     if((whitespaceflag==1 || newlineflag!=0) && (whitespaceflag!=1 || newlineflag==0))
                     {
-                        write_word(currword,&outcount,len,newlineflag,started,isfirstword, &fail);
+                        write_word(currword,&outcount,len,newlineflag,started,isfirstword, &fail, outputfile);
                     }
                     isfirstword=0;
                     sb_destroy(currword);
@@ -68,8 +68,7 @@ int wrap(int fd, size_t len)
             }
         }
     }
-    // (DISCUSS - may end with space character) adding last word in case no space character found
-    write_word(currword,&outcount,len,newlineflag,started,isfirstword, &fail);
+    write_word(currword,&outcount,len,newlineflag,started,isfirstword, &fail, outputfile);
     sb_destroy(currword);
     free(buff);
     free(currword);
@@ -93,7 +92,7 @@ strbuf_t* read_word(strbuf_t* currword, char currletter, int *started)
 }
 
 //
-void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag, int started, int isfirstword, int *fail)
+void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag, int started, int isfirstword, int *fail, int outputfile)
 {    
     int sizewritten=*outcount;
     int currsize=currword->used;
@@ -103,10 +102,10 @@ void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag
         char parabuf[2];
         parabuf[0]='\n';    
         parabuf[1]='\n';
-        write(1,parabuf,2);
+        write(outputfile,parabuf,2);
         sizewritten=0;
     }
-    if(sizewritten==0 || isfirstword==1)
+    if(sizewritten==0 || isfirstword==1 || currword->used==0)
     {
         added=0;
     }
@@ -117,11 +116,11 @@ void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag
             //putting prior space
             char tempspace[1];
             tempspace[0]=' ';
-            write(1,tempspace,1);
+            write(outputfile,tempspace,1);
         }
         //writing word
         char *tempword=currword->data;
-        write(1,tempword,currsize);
+        write(outputfile,tempword,currsize);
         *outcount=sizewritten+currsize+added;
     }
     //doesn't fit
@@ -132,22 +131,22 @@ void write_word(strbuf_t* currword, int *outcount, size_t limit, int newlineflag
         {
             char tempnewline[1];
             tempnewline[0]='\n';
-            write(1,tempnewline,1);
+            write(outputfile,tempnewline,1);
         }
         // if word is bigger than line length - writes word in own line and marks failure flag
         if(currsize>limit)
         {
             *fail=1;
             char *tempword=currword->data;
-            write(1,tempword,currsize);
+            write(outputfile,tempword,currsize);
             char tempnewline[1];
             tempnewline[0]='\n';
-            write(1,tempnewline,1);
+            write(outputfile,tempnewline,1);
             *outcount=0;
             return;
         }
         char *tempword=currword->data;
-        write(1,tempword,currsize);
+        write(outputfile,tempword,currsize);
         *outcount=currsize;
     }
 }
@@ -185,7 +184,7 @@ int main(int argc,char* argv[argc+1])
     if(num_arg==1)
     {
         int fd = 0;
-        int retval=wrap(fd,line_len);
+        int retval=wrap(fd,line_len,1);
             if(retval==1)
             {
                 return EXIT_FAILURE;
@@ -232,7 +231,7 @@ int main(int argc,char* argv[argc+1])
                 return EXIT_FAILURE;
             }
             
-            int retval=wrap(file,line_len);
+            int retval=wrap(file,line_len, 1);
 
             if(retval==1)
             {
