@@ -69,7 +69,6 @@ int wrap(int fd_read, size_t len, int fd_write)
             }
         }
     }
-    // (DISCUSS - may end with space character) adding last word in case no space character found
     write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail);
     write(fd_write,"\n",1);
     sb_destroy(currword);
@@ -80,12 +79,6 @@ int wrap(int fd_read, size_t len, int fd_write)
 
 strbuf_t* read_word(strbuf_t* currword, char currletter, int *started)
 {
-    /* // (REVIEW): NOT NEEDED
-    if(isspace(currletter) && currword -> used == 0)
-    {
-        return currword;
-    }
-    */
     if(!isspace(currletter))
     {
         *started=1;
@@ -199,13 +192,6 @@ int main(int argc,char* argv[argc+1])
     {
         //checks to see if valid file/directory
         int argtype=isdirect(argv[2]);
-
-        /* (REVIEW): NOT NEEDED
-        if(argc==2)
-        {
-            argtype=0;
-        }
-        */
         
         //exits program if file/directory not found
         if(argtype==2)
@@ -217,16 +203,6 @@ int main(int argc,char* argv[argc+1])
         if(argtype==0)
         {
             int file;
-            /* //(REVIEW): NOT NEEDED
-            if(argc==2)
-            {
-                file=0;
-            }
-            else
-            {
-                file = open(argv[2],O_RDONLY);
-            }
-            */
             file = open(argv[2],O_RDONLY);
             if(file==-1)
             {
@@ -252,7 +228,7 @@ int main(int argc,char* argv[argc+1])
 
             if(directptr==NULL)
             {
-                //maybe print what problem is here
+                perror("Error: ");
                 return EXIT_FAILURE;
             }
             struct dirent *de;
@@ -278,9 +254,6 @@ int main(int argc,char* argv[argc+1])
                     }
                     sb_concat(curr_write,inputfile);
                     sb_concat(curr_read,inputfile);
-                    //printf("%s \n",curr_read->data);
-                    //printf("%s \n",curr_write->data);
-                    
                     int fd_read=open(curr_read->data,O_RDONLY);
                     //create new file
                     //addon = strcat(addon,inputfile);
@@ -289,14 +262,11 @@ int main(int argc,char* argv[argc+1])
                     wrap(fd_read,line_len,fd_write);
                     close(fd_read);
                     close(fd_write);
-                    
-                    
                     sb_destroy(curr_write);
                     sb_destroy(curr_read);
                     free(curr_write);
                     free(curr_read);
                 }
-                
                 //else ignore subdirectories
             }
             free(dir);
