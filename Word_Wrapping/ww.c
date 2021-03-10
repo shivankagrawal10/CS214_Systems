@@ -38,23 +38,24 @@ int wrap(int fd_read, size_t len, int fd_write)
             //space character
             if(isspace(buff[i]))
             {
+                //checks if it's a newline character
                 if(buff[i]=='\n')
                 {
                     newlineflag++;
-                    whitespaceflag=0;
+                    
                 }
                 else
                 {
                     whitespaceflag++;
-                    newlineflag=0;
+                   
                 }
                 //checks whether first word of file
                 if(started!=0)
                 {
                     //writes word to output when only encountering 1 space character
-                    if((whitespaceflag==1 || newlineflag!=0) && (whitespaceflag!=1 || newlineflag==0))
+                    if((whitespaceflag==1 || newlineflag==1))
                     {
-                        write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail);
+                        write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail,0);
                     }
                     isfirstword=0;
                     sb_destroy(currword);
@@ -64,12 +65,19 @@ int wrap(int fd_read, size_t len, int fd_write)
             //normal char
             else
             {
+                //checks for and writes paragraph breaks to output file
+                if(newlineflag>=2)
+                {
+                    write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail,1);
+                }
                 newlineflag=0;
                 whitespaceflag=0;
             }
         }
     }
-    write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail);
+    //writes last word to output file and frees memory
+    newlineflag=0;
+    write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail,0);
     write(fd_write,"\n",1);
     sb_destroy(currword);
     free(buff);
@@ -88,23 +96,26 @@ strbuf_t* read_word(strbuf_t* currword, char currletter, int *started)
 }
 
 //
-void write_word(int fd_write, strbuf_t* currword, int *outcount, size_t limit, int newlineflag, int started, int isfirstword, int *fail)
+void write_word(int fd_write, strbuf_t* currword, int *outcount, size_t limit, int newlineflag, int started, int isfirstword, int *fail, int elsecall)
 {    
     int sizewritten=*outcount;
     int currsize=currword->used;
     int added=1;
-    if(newlineflag==2)
+    //paragraph breaks
+    if(newlineflag>=2 && elsecall==1)
     {
         char parabuf[2];
         parabuf[0]='\n';    
         parabuf[1]='\n';
         write(fd_write,parabuf,2);
-        sizewritten=0;
+        *outcount=0;
+        return;
     }
     if(sizewritten==0 || isfirstword==1 || currword->used==0)
     {
         added=0;
     }
+    //word fits on line
     if(sizewritten+currsize+added<=limit)
     {
         if(sizewritten!=0 && isfirstword==0 && currword->used!=0)
@@ -123,7 +134,7 @@ void write_word(int fd_write, strbuf_t* currword, int *outcount, size_t limit, i
     else
     {
         //skip line
-        if(newlineflag!=2)
+        if(newlineflag!=2 && sizewritten!=0 && currsize!=0)
         {
             char tempnewline[1];
             tempnewline[0]='\n';
@@ -135,12 +146,11 @@ void write_word(int fd_write, strbuf_t* currword, int *outcount, size_t limit, i
             *fail=1;
             char *tempword=currword->data;
             write(fd_write,tempword,currsize);
-            char tempnewline[1];
-            tempnewline[0]='\n';
-            write(fd_write,tempnewline,1);
-            *outcount=0;
+            
+            *outcount=currsize;
             return;
         }
+        //writing word
         char *tempword=currword->data;
         write(fd_write,tempword,currsize);
         *outcount=currsize;

@@ -3,14 +3,8 @@ This is very good     text that has been put into a file for the purposes
   an
     example.
 
-
-
-
-
-222222222222222222222222222222222222222222222222222222222222
-
-
-
 That          is
-      good.             
+      good. 
+
+222222222222222222222222222222222222222222222222222222222222            
 
