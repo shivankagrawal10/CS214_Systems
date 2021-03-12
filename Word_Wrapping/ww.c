@@ -280,6 +280,7 @@ int main(int argc,char* argv[argc+1])
                 }
                 //else ignore subdirectories
             }
+            sb_destroy(dir);
             free(dir);
             closedir(directptr);
         }
