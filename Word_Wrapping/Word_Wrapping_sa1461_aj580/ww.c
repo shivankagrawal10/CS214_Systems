@@ -261,6 +261,10 @@ int main(int argc,char* argv[argc+1])
                     sb_concat(curr_write,addon);
                     if(*inputfile=='.'|| strstr(inputfile,addon)!=NULL)
                     {
+                        sb_destroy(curr_write);
+                        sb_destroy(curr_read);
+                        free(curr_write);
+                        free(curr_read);
                         continue;
                     }
                     sb_concat(curr_write,inputfile);
@@ -280,6 +284,7 @@ int main(int argc,char* argv[argc+1])
                 }
                 //else ignore subdirectories
             }
+            sb_destroy(dir);
             free(dir);
             closedir(directptr);
         }
