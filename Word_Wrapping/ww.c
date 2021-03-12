@@ -183,6 +183,7 @@ int main(int argc,char* argv[argc+1])
     int line_len = atoi(argv[1]);
     if(line_len<=0)
     {
+        printf("Width argument invalid\n");
         return EXIT_FAILURE;
     }
 
