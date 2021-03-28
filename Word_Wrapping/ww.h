@@ -1,6 +1,15 @@
 #ifndef STRBUF_H
 #define STRBUF_H "strbuf.h"
 #include STRBUF_H
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <ctype.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <string.h>
 #endif
 
 

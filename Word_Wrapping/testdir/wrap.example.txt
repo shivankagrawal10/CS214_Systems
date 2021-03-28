@@ -1,15 +1,8 @@
-Hello this
-is a test
-of
-superpowers
-that are
-so amazing
-that I
-cannot
-believe
+Hello this is a test of
+superpowers that are so
+amazing that I cannot believe
 this
 
 Goodbye
 
-And Thank
-You!
+And Thank You!
