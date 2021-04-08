@@ -1,24 +1,95 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <ctype.h>
-#include <dirent.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <pthread.h>
-
-typedef struct LLNode
+#include "compare.h"
+#define LEN 10
+#define BUFFSIZE 10
+int tokenize(int fd_read)
 {
-   char *word;
-   int occurrences;
-   float frequency;
-   LLNode *next;
+    char* buff= malloc(BUFFSIZE);
+    strbuf_t* currword= malloc(sizeof(strbuf_t));
+    sb_init(currword,(size_t) LEN);
+    int num_read = 1;
+    int offset = 0;
+    //int outcount=0;
+    int newlineflag=0;
+    int started=0;
+    //int isfirstword=1;
+    int whitespaceflag=0;
+    int fail=0;
+    while(num_read>0)
+    {
+        // reads char from file into buffer (size specified by macro)
+	    num_read = pread(fd_read,buff,BUFFSIZE,offset);
+	    offset += num_read;
+	    // Iterating through buffer
+	    for(int i=0; i<num_read; i++)
+	    {
+            //printf("curr letter: %c",buff[i]);
+            //adds nonspace char to currword strbuf
+            read_word(currword,buff[i],&started);
+            //space character
+            if(isspace(buff[i]))
+            {
+                //checks if it's a newline character
+                if(buff[i]=='\n')
+                {
+                    newlineflag++;
+                }
+                else
+                {
+                    whitespaceflag++;
+                }
+                //checks whether first word of file
+                if(started!=0)
+                {
+                    //writes word to output when only encountering 1 space character
+                    if((whitespaceflag==1 || newlineflag==1)&&currword->used>0)
+                    {
+                        printf("|%s|\n",currword->data);
+                        //write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail,0);
+                    }
+                    //isfirstword=0;
+                    sb_destroy(currword);
+                    sb_init(currword,LEN);
+                }
+            }
+            else
+            {
+              newlineflag=0;
+              whitespaceflag=0;
+            }
+        }
+    }
+    //writes last word to output file and frees memory
+    newlineflag=0;
+    //write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail,0);
+    //write(fd_write,"\n",1);
+    sb_destroy(currword);
+    free(buff);
+    free(currword);
+    return fail;
+}
 
-}LLNode;
+strbuf_t* read_word(strbuf_t* currword, char currletter,int *started)
+{
+    if(!isspace(currletter))
+    {
+        *started = 1;
+        sb_append(currword,currletter);
+    }
+    return currword;
+}
 
-
+//returns 0 if file, 1 if directory, 2 if file/directory not found
+int isdirect(char *name)
+{
+    struct stat data;
+    int err=stat(name,&data);
+    if(err!=0)
+    {
+       perror(name);
+       return 2;
+    }
+    return S_ISDIR(data.st_mode);
+}
 
 int main(int argc,char* argv[argc+1])
 {
@@ -27,10 +98,10 @@ int main(int argc,char* argv[argc+1])
   int filethreads=1;
   int analysisthreads=1;
   char *suffix=".txt";
-  
+
   int nondasharg=0;
   int nondashstart=0;
-  
+
   for(int i=1;i<argc;i++)
   {
       char *currentarg=argv[i];
@@ -121,7 +192,11 @@ int main(int argc,char* argv[argc+1])
      return EXIT_FAILURE;
   }
 
-
+  printf("%d, %d, %d, %s\n",analysisthreads,filethreads,directthreads,suffix);
+  // temporary file input
+  int file;
+  file = open(argv[2],O_RDONLY);
+  tokenize(file);
 
 
 
