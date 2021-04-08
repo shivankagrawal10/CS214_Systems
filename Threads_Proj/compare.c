@@ -1,7 +1,7 @@
 #include "compare.h"
 #define LEN 10
 #define BUFFSIZE 10
-int tokenize(int fd_read)
+LLNodePTR* tokenize(int fd_read,int file_index, LLNodePTR* freq_dist)
 {
     char* buff= malloc(BUFFSIZE);
     strbuf_t* currword= malloc(sizeof(strbuf_t));
@@ -13,7 +13,7 @@ int tokenize(int fd_read)
     int started=0;
     //int isfirstword=1;
     int whitespaceflag=0;
-    int fail=0;
+    //int fail=0;
     while(num_read>0)
     {
         // reads char from file into buffer (size specified by macro)
@@ -43,7 +43,7 @@ int tokenize(int fd_read)
                     //writes word to output when only encountering 1 space character
                     if((whitespaceflag==1 || newlineflag==1)&&currword->used>0)
                     {
-                        printf("|%s|\n",currword->data);
+                        printf("|%d|\n",freq_dist[file_index]);
                         //write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail,0);
                     }
                     //isfirstword=0;
@@ -58,14 +58,10 @@ int tokenize(int fd_read)
             }
         }
     }
-    //writes last word to output file and frees memory
-    newlineflag=0;
-    //write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail,0);
-    //write(fd_write,"\n",1);
     sb_destroy(currword);
     free(buff);
     free(currword);
-    return fail;
+    return freq_dist;
 }
 
 strbuf_t* read_word(strbuf_t* currword, char currletter,int *started)
@@ -89,6 +85,15 @@ int isdirect(char *name)
        return 2;
     }
     return S_ISDIR(data.st_mode);
+}
+
+LLNode* LLNodeInit(LLNode* freq_dist,int numfiles)
+{
+  for (int i=0;i<numfiles;i++)
+  {
+    freq_dist[i] = malloc(sizeof(LLNode));
+  }
+  return freq_dist;
 }
 
 int main(int argc,char* argv[argc+1])
@@ -192,11 +197,21 @@ int main(int argc,char* argv[argc+1])
      return EXIT_FAILURE;
   }
 
+  /*
+  Temporary face holder code to test tokenize and create frequency distribution
+  - needs to do necessary check for valid files and subdirectories
+  - needs to feed file descriptors to tokenize method
+  - numfiles: need count of how many files we are working with
+  */
   printf("%d, %d, %d, %s\n",analysisthreads,filethreads,directthreads,suffix);
+  int numfiles = 2;
+  LLNode* freq_dist [numfiles];
+  //LLNodeInit(freq_dist,numfiles);
   // temporary file input
   int file;
+  int file_index = 2;
   file = open(argv[2],O_RDONLY);
-  tokenize(file);
+  tokenize(file,file_index,freq_dist);
 
 
 
