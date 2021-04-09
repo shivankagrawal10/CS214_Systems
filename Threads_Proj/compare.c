@@ -97,10 +97,10 @@ LLNodePTR* tokenize(int fd_read,int file_index, LLNodePTR* freq_dist)
 
 strbuf_t* read_word(strbuf_t* currword, char currletter,int *started)
 {
-    if(!isspace(currletter))
+    if(!isspace(currletter)&&(isalpha(currletter)||isdigit(currletter)||currletter=='-'))
     {
         *started = 1;
-        sb_append(currword,currletter);
+        sb_append(currword,tolower(currletter));
     }
     return currword;
 }
