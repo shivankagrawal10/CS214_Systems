@@ -26,4 +26,5 @@ typedef struct LLNode* LLNodePTR;
 LLNodePTR* tokenize(int,int,LLNodePTR*);
 strbuf_t *read_word(strbuf_t *, char, int *);
 int isdirect(char *);
-LLNode* LLNodeInit(LLNode*,int);
+LLNodePTR* LLNodeInit(LLNodePTR*,int);
+void LLPrint(LLNodePTR *,int);

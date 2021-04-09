@@ -17,6 +17,21 @@ int sb_init(strbuf_t *L, size_t length)
     return 0;
 }
 
+int sb_comp(strbuf_t *L,strbuf_t *K)
+{
+  if(L->used != K->used)
+  {
+    return 0;
+  }
+  for(int i = 0; i < L->used;i++)
+  {
+      if(L->data[i] != K->data[i]){
+        return 0;
+      }
+  }
+  return 1;
+}
+
 void sb_destroy(strbuf_t *L)
 {
     free(L->data);
@@ -83,9 +98,9 @@ int sb_insert(strbuf_t *L, int index, char item)
     L=remove_null(L);
     L->data[index]=item;
     L->used=index+1;
-  }  
+  }
   L=update_null(L);
-  return 0;   
+  return 0;
 }
 
 int sb_concat(strbuf_t* L, char *str)
