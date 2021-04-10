@@ -1,6 +1,38 @@
 #include "compare.h"
 #define LEN 10
 #define BUFFSIZE 10
+
+typedef struct LLNodeMean
+{
+    char *word;
+    double frequency;
+    LLNodeMean *next;
+}LLNodeMean;
+
+typedef struct filepair
+{
+    int index1;
+    int index2;
+
+}filepair;
+
+typedef struct anargs
+{
+    filepair* pairsarr;
+    int pairbegin;
+    int pairend;
+
+}anargs;
+
+typedef struct finalresult
+{
+    int commonwords;
+    double JSD;
+    char *f1path;
+    char *f2path;
+
+}finalresult;
+
 LLNodePTR* tokenize(int fd_read,int file_index, LLNodePTR* freq_dist)
 {
     char* buff= malloc(BUFFSIZE);
@@ -143,6 +175,203 @@ void LLPrint(LLNodePTR *freq_dist,int num_files)
   }
 }
 
+void * analysis(void *anarguments)
+{
+   pthread_mutex_lock(&anlock);
+   anargs* arguments=anarguments;
+   filepair*parr=arguments->pairsarr;
+   int start=arguments->pairbegin;
+   int stop=arguments->pairend;
+   
+
+   for(int b=start;b<=stop;b++)
+   {
+       int commonwords=0;
+       int f1index=parr[b].index1;
+       int f2index=parr[b].index2;
+       LLNode*ptr1=freq_dist[f1index];
+       LLNodeMean*fmean=NULL;
+       LLNodeMean*fmeanlast=NULL;
+       //f1words & common words
+       while(ptr1!=NULL)
+       {
+          char *firstword=ptr1->word->data;
+          LLNode*ptr2=freq_dist[f2index];
+          int found=0;
+          while(ptr2!=NULL)
+          {
+             char*secondword=ptr2->word->data;
+             //match found
+             if(strncmp(firstword,secondword,strlen(firstword))==0)
+             {
+                 double mean=(ptr1->frequency+ptr2->frequency)*0.5;
+                 //start mean list
+                 if(fmean==NULL)
+                 {
+                     fmean=malloc(sizeof(LLNodeMean));
+                     fmean->word=firstword;
+                     fmean->frequency=mean;
+                     fmean->next=NULL;
+                     fmeanlast=fmean;
+                 }
+                 else
+                 {
+                     LLNodeMean*insert=malloc(sizeof(LLNodeMean));
+                     insert->frequency=mean;
+                     insert->word=firstword;
+                     insert->next=NULL;
+                     fmeanlast->next=insert;
+                     fmeanlast=insert;
+                 }
+                 commonwords++;
+                 found=1;
+                 break;
+             }
+             ptr2=ptr2->next;
+
+          }
+          if(found==0)
+          {
+              double firstnotfoundmean=0.5*(ptr1->frequency);
+              if(fmean==NULL)
+                 {
+                     fmean=malloc(sizeof(LLNodeMean));
+                     fmean->word=firstword;
+                     fmean->frequency=firstnotfoundmean;
+                     fmean->next=NULL;
+                     fmeanlast=fmean;
+                 }
+                 else
+                 {
+                     LLNodeMean*insert=malloc(sizeof(LLNodeMean));
+                     insert->frequency=firstnotfoundmean;
+                     insert->word=firstword;
+                     insert->next=NULL;
+                     fmeanlast->next=insert;
+                     fmeanlast=insert;
+                 }
+
+           }
+           ptr1=ptr1->next;
+
+
+       }
+       
+       //f2wordsonly
+
+       LLNode *ptr2f2only=freq_dist[f2index];
+
+       while(ptr2f2only!=NULL)
+
+       {
+           char *f2word=ptr2f2only->word->data;
+           LLNode *ptr1f2only=freq_dist[f1index];
+           int found2=0;
+           while(ptr1f2only!=NULL)
+           {
+              char *f1word=ptr1f2only->word->data;
+              if(strncmp(f2word,f1word,strlen(f2word))==0)
+              {
+                  found2=1;
+                  break;
+              }
+              ptr1f2only=ptr1f2only->next;
+           }
+           //if not found, then add
+           if(found2==0)
+           {
+               double secondnotfoundmean=0.5*(ptr2f2only->frequency);
+               if(fmean==NULL)
+                 {
+                     fmean=malloc(sizeof(LLNodeMean));
+                     fmean->word=f2word;
+                     fmean->frequency=secondnotfoundmean;
+                     fmean->next=NULL;
+                     fmeanlast=fmean;
+                 }
+                 else
+                 {
+                     LLNodeMean*insert=malloc(sizeof(LLNodeMean));
+                     insert->frequency=secondnotfoundmean;
+                     insert->word=f2word;
+                     insert->next=NULL;
+                     fmeanlast->next=insert;
+                     fmeanlast=insert;
+                 }
+           }
+           ptr2f2only=ptr2f2only->next;
+       }
+       
+       //KLD distance f1 and mean
+       double kld1=0.0;
+       LLNode *p1=freq_dist[f1index];
+       while(p1!=NULL)
+       {
+          //find word in mean list and compute kld
+          LLNodeMean *mp1=fmean;
+          while(mp1!=NULL)
+          {
+             if(strncmp(mp1->word,p1->word->data,strlen(mp1->word))==0)
+             {
+                 double freq1=p1->frequency;
+                 double freqmean=mp1->frequency;
+                 kld1=kld1+(freq1*log2(freq1/freqmean));
+                 break;
+                 
+             }
+             mp1=mp1->next;
+          }
+          p1=p1->next;
+           
+       }
+
+       //KLD distance f2 and mean 
+       double kld2=0.0;
+       LLNode *p2=freq_dist[f2index];
+       while(p2!=NULL)
+       {
+          //find word in mean list and compute kld
+          LLNodeMean *mp2=fmean;
+          while(mp2!=NULL)
+          {
+             if(strncmp(mp2->word,p2->word->data,strlen(mp2->word))==0)
+             {
+                 double freq2=p2->frequency;
+                 double freqmean=mp2->frequency;
+                 kld2=kld2+(freq2*log2(freq2/freqmean));
+                 break;
+                 
+             }
+             mp2=mp2->next;
+          }
+          p2=p2->next;
+           
+       }
+       //final JSD and put in results set
+       double inroot=(0.5*kld1)+(0.5*kld2);
+       double jsd=sqrt(inroot);
+       finalresult *insertfr=malloc(sizeof(finalresult));
+       insertfr->commonwords=commonwords;
+       insertfr->JSD=jsd;
+       insertfr->f1path=freq_dist[f1index]->name;
+       insertfr->f2path=freq_dist[f2index]->name;
+       results[resultsindex]=insertfr;
+       resultsindex++;
+
+   }
+
+   pthread_mutex_unlock(&anlock);
+
+}
+
+
+
+
+//global variables
+pthread_mutex_t anlock;
+finalresult*results;
+int resultsindex=0;
+
 int main(int argc,char* argv[argc+1])
 {
   //dashed args must be at beginning
@@ -243,6 +472,98 @@ int main(int argc,char* argv[argc+1])
      fprintf(stderr,"%s","Not enough file arguments provided");
      return EXIT_FAILURE;
   }
+
+   //initial placement of things in queues
+  for(int x=nondash_start;x<argc;x++)
+  {
+      int directorycheck=isdirect(argv[x]);
+      if(directorycheck==0)
+      {
+        
+      }
+      else if(directorycheck==1)
+      {
+            
+      }
+      else
+      {
+          fprintf(stderr,"%s"," File/Directory Argument ");
+          fprintf(stderr,"%d",x-nondash_start+1);
+          fprintf(stderr,"%s","is not a file or directory");
+      }
+  }
+
+
+  //analysis section
+  int totalfiles;
+  int totalpairs=(totalfiles*(totalfiles-1))/2;
+  filepair *pairsarray=malloc(totalpairs*(sizeof(filepair)));
+  int pairsarrindex=0;
+  for(int i=0;i<totalfiles;i++)
+  {
+      for(int j=i+1;j<totalfiles;j++)
+      {
+          filepair insert={i,j};
+          pairsarray[pairsarrindex]=insert;
+          pairsarrindex++;
+      }
+  }
+  int pairsperthread=totalpairs/analysis_threads;
+  int remainder=totalpairs%analysis_threads;
+  int firstpairnum=pairsperthread+remainder;
+
+  pthread_t *tids;
+  tids = malloc(analysis_threads * sizeof(pthread_t));
+  anargs *args;
+  args = malloc(analysis_threads * sizeof(anargs));
+  
+  int begin=0;
+  int end=firstpairnum-1;
+
+  if (pthread_mutex_init(&anlock, NULL) != 0) {
+        fprintf(stderr,"%s","\n mutex init has failed\n");
+        free(pairsarray);
+        free(args);
+        free(tids);
+        return EXIT_FAILURE;
+    }
+    results=malloc(totalpairs*(sizeof(finalresult)));
+
+  for(int a=0;a<analysis_threads;a++)
+  {
+      args[a].pairsarr=&pairsarray;
+      args[a].pairbegin=begin;
+      args[a].pairend=end;
+      int err=pthread_create(&tids[a], NULL, analysis, &args[a]);
+      if(err!=0)
+      {
+         fprintf(stderr,"%s","pthread_create failed");
+         free(pairsarray);
+         free(args);
+         free(tids);
+         return EXIT_FAILURE;
+      }
+      begin=end+1;
+      end=end+pairsperthread;
+  }
+  for (int i = 0; i < analysis_threads; ++i) {
+		int errjoin=pthread_join(tids[i], NULL);
+        if(errjoin!=0)
+        {
+            fprintf(stderr,"%s","pthread_join failed");
+            free(pairsarray);
+            free(args);
+            free(tids);
+            return EXIT_FAILURE;
+        }
+	
+    }
+
+
+  pthread_mutex_destroy(&anlock);
+  free(pairsarray);
+  free(args);
+  free(tids);
 
   /*
   Temporary face holder code to test tokenize and create frequency distribution

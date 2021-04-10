@@ -10,12 +10,14 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <pthread.h>
+#include <math.h>
 #include "strbuf.h"
 #endif
 
 typedef struct LLNode
 {
    strbuf_t *word;
+   char *filepath;
    int occurrences;
    float frequency;
    struct LLNode *next;
