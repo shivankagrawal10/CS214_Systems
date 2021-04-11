@@ -17,7 +17,7 @@
 typedef struct LLNode
 {
    strbuf_t *word;
-   char *filepath;
+   char *name;
    int occurrences;
    float frequency;
    struct LLNode *next;
@@ -25,8 +25,9 @@ typedef struct LLNode
 
 typedef struct LLNode* LLNodePTR;
 
-LLNodePTR* tokenize(int,char*,int,LLNodePTR*);
+LLNodePTR tokenize(int,char *,int,LLNodePTR*);
 strbuf_t *read_word(strbuf_t *, char, int *);
 int isdirect(char *);
 LLNodePTR* LLNodeInit(LLNodePTR*,int);
 void LLPrint(LLNodePTR *,int);
+LLNodePTR SelectionSort(LLNodePTR);
