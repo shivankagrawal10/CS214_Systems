@@ -2,54 +2,6 @@
 #define LEN 10
 #define BUFFSIZE 10
 
-
-typedef struct LLNodeMean
-{
-    char *word;
-    double frequency;
-    struct LLNodeMean *next;
-}LLNodeMean;
-
-typedef struct QNode
-{
-    char *path;
-    struct QNode*next;
-}QNode;
-
-typedef struct Queue
-{
-    QNode *front;
-    unsigned count;
-    int open;
-	//pthread_mutex_t qlock;
-	//pthread_cond_t read_ready;
-	//pthread_cond_t write_ready;
-}Queue;
-
-typedef struct filepair
-{
-    int index1;
-    int index2;
-
-}filepair;
-
-typedef struct anargs
-{
-    filepair* pairsarr;
-    int pairbegin;
-    int pairend;
-
-}anargs;
-
-typedef struct finalresult
-{
-    int commonwords;
-    double JSD;
-    char *f1path;
-    char *f2path;
-
-}finalresult;
-
 //global vars
 LLNode** freq_dist;
 pthread_mutex_t anlock;
@@ -82,6 +34,117 @@ int qinit(Queue *Q,int num,QNode*ptrtoLL)
      return 0;
 }
 
+LLNodePTR tokenize(int fd_read,char *filename,int file_index, LLNodePTR* freq_dist)
+{
+    char* buff= malloc(BUFFSIZE);
+    strbuf_t* currword= malloc(sizeof(strbuf_t));
+    sb_init(currword,(size_t) LEN);
+    int num_read = 1;
+    int offset = 0;
+    int total_words = 0;
+    //int outcount=0;
+    int newlineflag=0;
+    int started=0;
+    //int isfirstword=1;
+    int whitespaceflag=0;
+    //int fail=0;
+    LLNode *current_node = freq_dist[file_index];
+    LLNode *prev_node = 0;
+    while(num_read>0)
+    {
+        // reads char from file into buffer (size specified by macro)
+	    num_read = pread(fd_read,buff,BUFFSIZE,offset);
+	    offset += num_read;
+	    // Iterating through buffer
+	    for(int i=0; i<num_read; i++)
+	    {
+            //printf("curr letter: %c",buff[i]);
+            //adds nonspace char to currword strbuf
+            read_word(currword,buff[i],&started);
+            //space character
+            if(isspace(buff[i]))
+            {
+                //checks if it's a newline character
+                if(buff[i]=='\n')
+                {
+                    newlineflag++;
+                }
+                else
+                {
+                    whitespaceflag++;
+                }
+                //checks whether first word of file
+                if(started!=0)
+                {
+                  if((whitespaceflag==1 || newlineflag==1)&&currword->used>0)
+                    {
+                      ++total_words;
+                      current_node = freq_dist[file_index];
+                      while(current_node!=0){
+                        if(current_node->word==0) break;
+                        if(sb_comp(current_node->word,currword)){
+                          //printf("%s, %s",current_node->word->data,currword->data);
+                          if(current_node != freq_dist[file_index]){
+                            prev_node->next = current_node->next;
+                            current_node ->next = freq_dist[file_index];
+                            freq_dist[file_index] = current_node;
+                          }
+                          current_node->occurrences++;
+                          break;
+                        }
+                        prev_node = current_node;
+                        current_node = current_node->next;
+                      }
+                      if(current_node == 0||current_node->word==0){
+                        LLNode *new_node = malloc(sizeof(LLNode));
+                        new_node->word = malloc(sizeof(strbuf_t));
+                        sb_init(new_node->word,currword->used);
+                        sb_concat(new_node->word,currword->data);
+                        new_node->occurrences = 1;
+                        new_node->next = 0;
+                        new_node->name=filename;
+                        if(current_node == 0){
+                          prev_node -> next = new_node;
+                        }
+                        else if(current_node->word == 0){
+                          freq_dist[file_index] = new_node;
+                        }
+                      }
+                    }
+                    //isfirstword=0;
+                    sb_destroy(currword);
+                    sb_init(currword,LEN);
+                }
+            }
+            else
+            {
+              newlineflag=0;
+              whitespaceflag=0;
+            }
+        }
+    }
+    sb_destroy(currword);
+    free(buff);
+    free(currword);
+    current_node = freq_dist[file_index];
+    while(current_node != 0){
+      current_node -> frequency = current_node -> occurrences / total_words;
+      current_node = current_node -> next;
+    }
+    freq_dist[file_index] = SelectionSort(freq_dist[file_index]);
+    return freq_dist[file_index];
+}
+
+strbuf_t* read_word(strbuf_t* currword, char currletter,int *started)
+{
+    if(!isspace(currletter)&&(isalpha(currletter)||isdigit(currletter)||currletter=='-'))
+    {
+        *started = 1;
+        sb_append(currword,tolower(currletter));
+    }
+    return currword;
+}
+
 void * analysis(void *anarguments)
 {
    pthread_mutex_lock(&anlock);
@@ -89,7 +152,7 @@ void * analysis(void *anarguments)
    filepair*parr=arguments->pairsarr;
    int start=arguments->pairbegin;
    int stop=arguments->pairend;
-   
+
 
    for(int b=start;b<=stop;b++)
    {
@@ -163,7 +226,7 @@ void * analysis(void *anarguments)
 
 
        }
-       
+
        //f2wordsonly
 
        LLNode *ptr2f2only=freq_dist[f2index];
@@ -208,7 +271,7 @@ void * analysis(void *anarguments)
            }
            ptr2f2only=ptr2f2only->next;
        }
-       
+
        //KLD distance f1 and mean
        double kld1=0.0;
        LLNode *p1=freq_dist[f1index];
@@ -224,15 +287,15 @@ void * analysis(void *anarguments)
                  double freqmean=mp1->frequency;
                  kld1=kld1+(freq1*log2(freq1/freqmean));
                  break;
-                 
+
              }
              mp1=mp1->next;
           }
           p1=p1->next;
-           
+
        }
 
-       //KLD distance f2 and mean 
+       //KLD distance f2 and mean
        double kld2=0.0;
        LLNode *p2=freq_dist[f2index];
        while(p2!=NULL)
@@ -247,12 +310,12 @@ void * analysis(void *anarguments)
                  double freqmean=mp2->frequency;
                  kld2=kld2+(freq2*log2(freq2/freqmean));
                  break;
-                 
+
              }
              mp2=mp2->next;
           }
           p2=p2->next;
-           
+
        }
        //final JSD and put in results set
        double inroot=(0.5*kld1)+(0.5*kld2);
@@ -268,137 +331,21 @@ void * analysis(void *anarguments)
        //freeing
 
       if(fmean!=NULL)
-        {
+      {
           LLNodeMean*temp;
-               
+
           while(fmean!=NULL)
           {
             temp=fmean;
             fmean=fmean->next;
             free(temp);
-                    
+
           }
-        }
-
-    
-
+      }
    }
 
    pthread_mutex_unlock(&anlock);
    return NULL;
-}
-
-
-
-
-
-
-
-LLNodePTR tokenize(int fd_read,char *filename,int file_index, LLNodePTR* freq_dist)
-{
-    char* buff= malloc(BUFFSIZE);
-    strbuf_t* currword= malloc(sizeof(strbuf_t));
-    sb_init(currword,(size_t) LEN);
-    int num_read = 1;
-    int offset = 0;
-    //int outcount=0;
-    int newlineflag=0;
-    int started=0;
-    //int isfirstword=1;
-    int whitespaceflag=0;
-    //int fail=0;
-    LLNode *current_node = freq_dist[file_index];
-    LLNode *prev_node = 0;
-    while(num_read>0)
-    {
-        // reads char from file into buffer (size specified by macro)
-	    num_read = pread(fd_read,buff,BUFFSIZE,offset);
-	    offset += num_read;
-	    // Iterating through buffer
-	    for(int i=0; i<num_read; i++)
-	    {
-            //printf("curr letter: %c",buff[i]);
-            //adds nonspace char to currword strbuf
-            read_word(currword,buff[i],&started);
-            //space character
-            if(isspace(buff[i]))
-            {
-                //checks if it's a newline character
-                if(buff[i]=='\n')
-                {
-                    newlineflag++;
-                }
-                else
-                {
-                    whitespaceflag++;
-                }
-                //checks whether first word of file
-                if(started!=0)
-                {
-                    //writes word to output when only encountering 1 space character
-                    if((whitespaceflag==1 || newlineflag==1)&&currword->used>0)
-                    {
-                      current_node = freq_dist[file_index];
-                      while(current_node!=0){
-                        if(current_node->word==0) break;
-                        if(sb_comp(current_node->word,currword)){
-                          //printf("%s, %s",current_node->word->data,currword->data);
-                          if(current_node != freq_dist[file_index]){
-                            prev_node->next = current_node->next;
-                            current_node ->next = freq_dist[file_index];
-                            freq_dist[file_index] = current_node;
-                          }
-                          current_node->occurrences++;
-                          break;
-                        }
-                        prev_node = current_node;
-                        current_node = current_node->next;
-                      }
-                      if(current_node == 0||current_node->word==0){
-                        LLNode *new_node = malloc(sizeof(LLNode));
-                        new_node->word = malloc(sizeof(strbuf_t));
-                        sb_init(new_node->word,currword->used);
-                        sb_concat(new_node->word,currword->data);
-                        new_node->occurrences = 1;
-                        new_node->next = 0;
-                        new_node->name=filename;
-                        if(current_node == 0){
-                          prev_node -> next = new_node;
-                        }
-                        else if(current_node->word == 0){
-                          freq_dist[file_index] = new_node;
-                        }
-                      }
-                      //printf("|%s|\n",_node->word->data);
-                        //write_word(fd_write,currword,&outcount,len,newlineflag,started,isfirstword, &fail,0);
-                    }
-                    //isfirstword=0;
-                    sb_destroy(currword);
-                    sb_init(currword,LEN);
-                }
-            }
-            else
-            {
-              newlineflag=0;
-              whitespaceflag=0;
-            }
-        }
-    }
-    sb_destroy(currword);
-    free(buff);
-    free(currword);
-    freq_dist[file_index] = SelectionSort(freq_dist[file_index]);
-    return freq_dist[file_index];
-}
-
-strbuf_t* read_word(strbuf_t* currword, char currletter,int *started)
-{
-    if(!isspace(currletter)&&(isalpha(currletter)||isdigit(currletter)||currletter=='-'))
-    {
-        *started = 1;
-        sb_append(currword,tolower(currletter));
-    }
-    return currword;
 }
 
 //returns 0 if file, 1 if directory, 2 if file/directory not found
@@ -520,7 +467,7 @@ void FreeLL(LLNodePTR* LL, int num_files)
 
 int main(int argc,char* argv[argc+1])
 {
-  //dashed args must be at beginning
+  //User Interface
   int direct_threads=1;
   int file_threads=1;
   int analysis_threads=1;
@@ -619,7 +566,7 @@ int main(int argc,char* argv[argc+1])
      return EXIT_FAILURE;
   }
 
-  //initial placement of things in queues
+  //initial placement of directories and files in queues
    Queue directq;
    Queue fileq;
    QNode *frontd=NULL;
@@ -636,42 +583,39 @@ int main(int argc,char* argv[argc+1])
       //file
       if(directorycheck==0)
       {
-          
          countf++;
          if(frontf==NULL)
          {
-                 frontf=malloc(sizeof(QNode));
-                 frontf->path=argv[x];
-                 frontf->next=NULL;
-                 lastf=frontf;
+             frontf=malloc(sizeof(QNode));
+             frontf->path=argv[x];
+             frontf->next=NULL;
+             lastf=frontf;
          }
         else
         {
-                 QNode*insertf=malloc(sizeof(QNode));
-                 insertf->path=argv[x];
-                 insertf->next=NULL;
-                 lastf->next=insertf;
+            QNode*insertf=malloc(sizeof(QNode));
+            insertf->path=argv[x];
+            insertf->next=NULL;
+            lastf->next=insertf;
         }
-          
-                  
       }
       //direct
       else if(directorycheck==1)
       {
-         countd++;
-         if(frontd==NULL)
-         {
-                 frontd=malloc(sizeof(QNode));
-                 frontd->path=argv[x];
-                 frontd->next=NULL;
-                 lastd=frontd;
-         }
+        countd++;
+        if(frontd==NULL)
+        {
+            frontd=malloc(sizeof(QNode));
+            frontd->path=argv[x];
+            frontd->next=NULL;
+            lastd=frontd;
+        }
         else
         {
-                 QNode*insertd=malloc(sizeof(QNode));
-                 insertd->path=argv[x];
-                 insertd->next=NULL;
-                 lastd->next=insertd;
+            QNode*insertd=malloc(sizeof(QNode));
+            insertd->path=argv[x];
+            insertd->next=NULL;
+            lastd->next=insertd;
         }
       }
       else
@@ -683,6 +627,9 @@ int main(int argc,char* argv[argc+1])
   }
   qinit(&directq,countd,frontd);
   qinit(&fileq,countf,frontf);
+
+
+
 
   //analysis section
   int totalfiles;
@@ -706,7 +653,7 @@ int main(int argc,char* argv[argc+1])
   tids = malloc(analysis_threads * sizeof(pthread_t));
   anargs *args;
   args = malloc(analysis_threads * sizeof(anargs));
-  
+
   int begin=0;
   int end=firstpairnum-1;
 
@@ -746,11 +693,11 @@ int main(int argc,char* argv[argc+1])
             free(tids);
             return EXIT_FAILURE;
         }
-	
+
     }
  //sorting and printing final results by commonwords
   //qsort(results,totalpairs,sizeof(finalresult),cmpfnc);
-  
+
   for(int i=0;i<totalpairs;i++)
   {
       printf("%f, %s, %s",results[i]->JSD,results[i]->f1path,results[i]->f2path);
@@ -776,6 +723,7 @@ int main(int argc,char* argv[argc+1])
   - needs to feed file descriptors to tokenize method
   - num_files: need count of how many files we are working with
   */
+  /*
   printf("%d, %d, %d, %s\n",analysis_threads,file_threads,direct_threads,suffix);
   int num_files = 1;
   freq_dist = malloc(sizeof(LLNode*)*num_files); //[num_files];
@@ -788,7 +736,7 @@ int main(int argc,char* argv[argc+1])
   LLPrint(freq_dist,num_files);
   FreeLL(freq_dist,num_files);
   free(freq_dist);
-
+  */
 
   return EXIT_SUCCESS;
 }
