@@ -139,21 +139,20 @@ int DirectorySearch(QNode *front, char *suffix)
       return EXIT_FAILURE;
   }
   struct dirent *de;
-
+  //int count = 0;
   while ((de = readdir(directptr)))
   {
-      char type=de->d_type;
-      if(type==DT_REG)
-      {
-          char *inputfile=de->d_name;
-          strbuf_t* item_path = malloc(sizeof(strbuf_t));
-          sb_init(item_path,10);
-          sb_concat(item_path,dir->data);
-          sb_concat(item_path,inputfile);
-          QEnqueue(item_path->data,suffix,1);
-          sb_destroy(item_path);
-          free(item_path);
-      }
+
+      char *inputfile=de->d_name;
+      if(strcmp(inputfile,".")==0 || strcmp(inputfile,"..")==0) {continue;}
+      strbuf_t* item_path = malloc(sizeof(strbuf_t));
+      sb_init(item_path,10);
+      sb_concat(item_path,dir->data);
+      sb_concat(item_path,inputfile);
+      sb_print(item_path);
+      QEnqueue(item_path->data,suffix,1);
+      sb_destroy(item_path);
+      free(item_path);
   }
   sb_destroy(dir);
   free(dir);
@@ -291,7 +290,6 @@ void * analysis(void *anarguments)
    filepair*parr=arguments->pairsarr;
    int start=arguments->pairbegin;
    int stop=arguments->pairend;
-
 
    for(int b=start;b<=stop;b++)
    {
@@ -731,6 +729,7 @@ int main(int argc,char* argv[argc+1])
   }
   QPrint(directq);
   QPrint(fileq);
+  free(directq);
   /*
   //analysis section
   int totalfiles = fileq->count;
@@ -819,7 +818,7 @@ int main(int argc,char* argv[argc+1])
   free(results);
 
   */
-
+  free(fileq);
 
 
 
