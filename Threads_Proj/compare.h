@@ -81,7 +81,7 @@ int DirectorySearch(QNode *, char *);
 
 
 
-LLNodePTR tokenize(int,char *,int,LLNodePTR*);
+LLNodePTR tokenize(int,char *);
 strbuf_t *read_word(strbuf_t *, char, int *);
 int isdirect(char *);
 

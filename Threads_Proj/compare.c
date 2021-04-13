@@ -9,6 +9,10 @@ finalresult**results;
 int resultsindex=0;
 Queue *directq;
 Queue *fileq;
+int activedthreads=0;
+int activefthreads=0;
+int fail=0;
+int file_index=0;
 
 int suffixcheck(char *pathname,char*suffix)
 {
@@ -41,7 +45,7 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
 {
     int directorycheck=isdirect(path_name);
     //file
-    Queue * Q;
+    Queue * Q=NULL;
     if(directorycheck==0)
     {
         if(strstr(path_name,suffix)!=0)
@@ -125,6 +129,25 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     */
 }
 
+void FDequeue()
+{
+   Queue *Q=fileq;
+   QNode *todeq=Q->front;
+   char *path=todeq->path->data;
+   int filedes=open(path,O_RDONLY);
+   if(filedes==-1)
+   {
+      fail=1;
+      return;
+   }
+   tokenize(filedes,path);
+   --Q -> count;
+   //free the node
+   QNode *temp=Q->front;
+   Q->front=Q->front->next;
+   free(temp);
+
+}
 int DirectorySearch(QNode *front, char *suffix)
 {
   strbuf_t* dir= malloc(sizeof(strbuf_t));
@@ -172,7 +195,7 @@ void QPrint(Queue *Que)
     //printf("size: %d\n",Que->count);
 }
 
-LLNodePTR tokenize(int fd_read,char *filename,int file_index, LLNodePTR* freq_dist)
+LLNodePTR tokenize(int fd_read,char *filename)
 {
     char* buff= malloc(BUFFSIZE);
     strbuf_t* currword= malloc(sizeof(strbuf_t));
@@ -671,6 +694,11 @@ int main(int argc,char* argv[argc+1])
          }
          else if(current_arg[1]=='s')
          {
+             if(strlen(current_arg)==2)
+             {
+                suffix="";
+                continue;
+             }
              char temp[strlen(current_arg)-2];
              int index=0;
              for(int x=2;x<strlen(current_arg);x++)
