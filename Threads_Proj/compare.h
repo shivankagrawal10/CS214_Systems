@@ -34,13 +34,14 @@ typedef struct LLNodeMean
 
 typedef struct QNode
 {
-    char *path;
+    strbuf_t *path;
     struct QNode*next;
 }QNode;
 
 typedef struct Queue
 {
     QNode *front;
+    QNode *last;
     unsigned count;
     int open;
 	//pthread_mutex_t qlock;
@@ -72,10 +73,22 @@ typedef struct finalresult
 
 }finalresult;
 
+int qinit(Queue *,int ,QNode *,QNode *);
+void QEnqueue(char *, char*, int);
+void QPrint(Queue *);
+int DirectorySearch(QNode *, char *);
+
+
+
+
 LLNodePTR tokenize(int,char *,int,LLNodePTR*);
 strbuf_t *read_word(strbuf_t *, char, int *);
 int isdirect(char *);
+
+void * analysis(void *);
+
 LLNodePTR* LLNodeInit(LLNodePTR*,int);
 void LLPrint(LLNodePTR *,int);
 LLNodePTR SelectionSort(LLNodePTR);
 int suffixcheck(char *,char*);
+void QPrint(Queue *);

@@ -7,6 +7,8 @@ LLNode** freq_dist;
 pthread_mutex_t anlock;
 finalresult**results;
 int resultsindex=0;
+Queue *directq;
+Queue *fileq;
 
 int suffixcheck(char *pathname,char*suffix)
 {
@@ -24,14 +26,151 @@ int suffixcheck(char *pathname,char*suffix)
     return 1;
 }
 
-int qinit(Queue *Q,int num,QNode*ptrtoLL)
+int qinit(Queue *Q,int num,QNode*front,QNode*last)
 {
      Q->count=0;
      Q->open=1;
-     Q->front=ptrtoLL;
+     Q->front=front;
+     Q->last = last;
     //pthread_mutex_init(&Q->qlock, NULL);
 	//pthread_cond_init(&Q->read_ready, NULL);
      return 0;
+}
+
+void QEnqueue(char * path_name, char *suffix, int b_thread)
+{
+    int directorycheck=isdirect(path_name);
+    //file
+    Queue * Q;
+    if(directorycheck==0)
+    {
+        if(strstr(path_name,suffix)!=0)
+        {
+          Q = fileq;
+        }
+        else {return;}
+        //if(b_thread){}
+    }
+    else if (directorycheck == 1)
+    {
+        Q = directq;
+    }
+    strbuf_t* item_path = malloc(sizeof(strbuf_t));
+    sb_init(item_path,BUFFSIZE);
+    sb_concat(item_path,path_name);
+    if(Q->front==NULL)
+    {
+           Q->front=malloc(sizeof(QNode));
+           Q->front->path=item_path;
+           Q->front->next=NULL;
+           Q->last=Q->front;
+    }
+    else
+    {
+           QNode *insert=malloc(sizeof(QNode));
+           insert->path=item_path;
+           insert->next=NULL;
+           Q->last->next=insert;
+           Q->last = Q->last->next;
+    }
+
+    ++Q -> count;
+
+
+    /*
+    int directorycheck=isdirect(path_name);
+    //direct
+    if(directorycheck==0)
+    {
+    //countf++;
+        if(frontf==NULL)
+        {
+                frontf=malloc(sizeof(QNode));
+                frontf->path=path_name;
+                frontf->next=NULL;
+                lastf=frontf;
+        }
+       else
+       {
+                QNode*insertf=malloc(sizeof(QNode));
+                insertf->path=path_name;
+                insertf->next=NULL;
+                lastf->next=insertf;
+       }
+    }
+    else if(directorycheck==1)
+    {
+         //countd++;
+         if(frontd==NULL)
+         {
+                 frontd=malloc(sizeof(QNode));
+                 frontd->path=path_name;
+                 frontd->next=NULL;
+                 lastd=frontd;
+         }
+        else
+        {
+                 QNode*insertd=malloc(sizeof(QNode));
+                 insertd->path=path_name;
+                 insertd->next=NULL;
+                 lastd->next=insertd;
+        }
+    }
+    else
+    {
+        fprintf(stderr,"%s"," File/Directory Argument ");
+        //fprintf(stderr,"%d",x-nondash_start+1);
+        fprintf(stderr,"%s","is not a file or directory");
+    }
+    */
+}
+
+int DirectorySearch(QNode *front, char *suffix)
+{
+  strbuf_t* dir= malloc(sizeof(strbuf_t));
+  sb_init(dir,10);
+  sb_concat(dir,front->path->data);
+  sb_concat(dir,"/");
+  DIR * directptr=opendir(dir->data);
+
+  if(directptr==NULL)
+  {
+      perror("Error: ");
+      return EXIT_FAILURE;
+  }
+  struct dirent *de;
+
+  while ((de = readdir(directptr)))
+  {
+      char type=de->d_type;
+      if(type==DT_REG)
+      {
+          char *inputfile=de->d_name;
+          strbuf_t* item_path = malloc(sizeof(strbuf_t));
+          sb_init(item_path,10);
+          sb_concat(item_path,dir->data);
+          sb_concat(item_path,inputfile);
+          QEnqueue(item_path->data,suffix,1);
+          sb_destroy(item_path);
+          free(item_path);
+      }
+  }
+  sb_destroy(dir);
+  free(dir);
+  closedir(directptr);
+  return EXIT_SUCCESS;
+}
+
+void QPrint(Queue *Que)
+{
+    QNode *front = Que -> front;
+    while(front!=0)
+    {
+      printf("|%s| - ",front -> path -> data);
+      front = front->next;
+    }
+    printf("\n");
+    //printf("size: %d\n",Que->count);
 }
 
 LLNodePTR tokenize(int fd_read,char *filename,int file_index, LLNodePTR* freq_dist)
@@ -565,74 +704,36 @@ int main(int argc,char* argv[argc+1])
      fprintf(stderr,"%s","Not enough file arguments provided");
      return EXIT_FAILURE;
   }
+  printf("%d, %d, %d, %s\n",analysis_threads,file_threads,direct_threads,suffix);
 
   //initial placement of directories and files in queues
-   Queue directq;
-   Queue fileq;
-   QNode *frontd=NULL;
-   QNode *lastd=NULL;
-   int countd=0;
-
-   QNode *frontf=NULL;
-   QNode *lastf=NULL;
-   int countf=0;
-
+  directq = malloc(sizeof(Queue));// need to free
+  fileq =  malloc(sizeof(Queue)); //need to free
+  qinit(directq,0,NULL,NULL);
+  qinit(fileq,0,NULL,NULL);
   for(int x=nondash_start;x<argc;x++)
   {
-      int directorycheck=isdirect(argv[x]);
-      //file
-      if(directorycheck==0)
-      {
-         countf++;
-         if(frontf==NULL)
-         {
-             frontf=malloc(sizeof(QNode));
-             frontf->path=argv[x];
-             frontf->next=NULL;
-             lastf=frontf;
-         }
-        else
-        {
-            QNode*insertf=malloc(sizeof(QNode));
-            insertf->path=argv[x];
-            insertf->next=NULL;
-            lastf->next=insertf;
-        }
-      }
-      //direct
-      else if(directorycheck==1)
-      {
-        countd++;
-        if(frontd==NULL)
-        {
-            frontd=malloc(sizeof(QNode));
-            frontd->path=argv[x];
-            frontd->next=NULL;
-            lastd=frontd;
-        }
-        else
-        {
-            QNode*insertd=malloc(sizeof(QNode));
-            insertd->path=argv[x];
-            insertd->next=NULL;
-            lastd->next=insertd;
-        }
-      }
-      else
-      {
-          fprintf(stderr,"%s"," File/Directory Argument ");
-          fprintf(stderr,"%d",x-nondash_start+1);
-          fprintf(stderr,"%s","is not a file or directory");
-      }
+    QEnqueue(argv[x], suffix,0);
   }
-  qinit(&directq,countd,frontd);
-  qinit(&fileq,countf,frontf);
+  QPrint(directq);
+  QPrint(fileq);
 
 
-
-
+  while(directq->count != 0)
+  {
+    QNode *temp = directq -> front;
+    DirectorySearch(temp, suffix);
+    directq->front = directq->front->next;
+    --directq->count;
+    sb_destroy(temp->path);
+    free(temp->path);
+    free(temp);
+  }
+  QPrint(directq);
+  QPrint(fileq);
+  /*
   //analysis section
-  int totalfiles;
+  int totalfiles = fileq->count;
   int totalpairs=(totalfiles*(totalfiles-1))/2;
   filepair *pairsarray=malloc(totalpairs*(sizeof(filepair)));
   int pairsarrindex=0;
@@ -716,6 +817,13 @@ int main(int argc,char* argv[argc+1])
       free(results[i]);
   }
   free(results);
+
+  */
+
+
+
+
+
 
   /*
   Temporary face holder code to test tokenize and create frequency distribution
