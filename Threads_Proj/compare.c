@@ -13,6 +13,7 @@ int activedthreads=0;
 int activefthreads=0;
 int fail=0;
 int file_index=0;
+char *suffix;
 
 int suffixcheck(char *pathname,char*suffix)
 {
@@ -36,8 +37,8 @@ int qinit(Queue *Q,int num,QNode*front,QNode*last)
      Q->open=1;
      Q->front=front;
      Q->last = last;
-    //pthread_mutex_init(&Q->qlock, NULL);
-	//pthread_cond_init(&Q->read_ready, NULL);
+     pthread_mutex_init(&Q->qlock, NULL);
+	   pthread_cond_init(&Q->read_ready, NULL);
      return 0;
 }
 
@@ -59,6 +60,7 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     {
         Q = directq;
     }
+    //if(b_thread) pthread_mutex_lock(&Q->qlock);
     strbuf_t* item_path = malloc(sizeof(strbuf_t));
     sb_init(item_path,BUFFSIZE);
     sb_concat(item_path,path_name);
@@ -79,8 +81,11 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     }
 
     ++Q -> count;
-
-
+    if(b_thread)
+    {
+      //pthread_mutex_unlock(&Q->qlock);
+      pthread_cond_signal(&Q->read_ready);
+    }
     /*
     int directorycheck=isdirect(path_name);
     //direct
@@ -129,31 +134,41 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     */
 }
 
-void FDequeue()
+void *DirQDequeue(void *arg)
 {
-   Queue *Q=fileq;
-   QNode *todeq=Q->front;
-   char *path=todeq->path->data;
-   int filedes=open(path,O_RDONLY);
-   if(filedes==-1)
-   {
-      fail=1;
-      return;
-   }
-   tokenize(filedes,path);
-   --Q -> count;
-   //free the node
-   QNode *temp=Q->front;
-   Q->front=Q->front->next;
-   free(temp);
-
+  pthread_mutex_lock(&directq->qlock);
+  while(directq->count == 0 && directq->open != 0)
+  {
+      pthread_cond_wait(&directq->read_ready,&directq->qlock);
+  }
+  //exits when thread receives signal to proceed but still nothing in queue
+  if(directq->count == 0)
+  {
+      pthread_mutex_unlock(&directq->qlock);
+      return NULL;
+  }
+  ++activedthreads;
+  QNode *temp = directq -> front;
+  DirectorySearch(temp);
+  directq->front = directq->front->next;
+  --directq->count;
+  sb_destroy(temp->path);
+  free(temp->path);
+  free(temp);
+  pthread_mutex_unlock(&directq->qlock);
+  --activedthreads;
+  return NULL;
 }
-int DirectorySearch(QNode *front, char *suffix)
+
+int DirectorySearch(QNode *front)
 {
   strbuf_t* dir= malloc(sizeof(strbuf_t));
   sb_init(dir,10);
   sb_concat(dir,front->path->data);
-  sb_concat(dir,"/");
+  if(dir->data[dir->used-1] != '/')
+  {
+      sb_concat(dir,"/");
+  }
   DIR * directptr=opendir(dir->data);
 
   if(directptr==NULL)
@@ -172,7 +187,7 @@ int DirectorySearch(QNode *front, char *suffix)
       sb_init(item_path,10);
       sb_concat(item_path,dir->data);
       sb_concat(item_path,inputfile);
-      sb_print(item_path);
+      //sb_print(item_path);
       QEnqueue(item_path->data,suffix,1);
       sb_destroy(item_path);
       free(item_path);
@@ -193,6 +208,50 @@ void QPrint(Queue *Que)
     }
     printf("\n");
     //printf("size: %d\n",Que->count);
+}
+
+
+void QClose(Queue *Q)
+{
+    pthread_mutex_lock(&Q->qlock);
+    Q->open = 0;
+    pthread_cond_broadcast(&Q->read_ready);
+    pthread_mutex_unlock(&Q->qlock);
+    //pthread_mutex_destroy(&Q->qlock);
+    //pthread_cond_destroy(&Q->read_ready);
+}
+
+void QFree()
+{
+  QNode *temp = fileq->front;;
+  while(fileq->front!=0)
+  {
+    temp = fileq->front;
+    fileq->front = fileq->front->next;
+    sb_destroy(temp->path);
+    free(temp->path);
+    free(temp);
+    --fileq->count;
+  }
+}
+
+void FDequeue()
+{
+   Queue *Q=fileq;
+   QNode *todeq=Q->front;
+   char *path=todeq->path->data;
+   int filedes=open(path,O_RDONLY);
+   if(filedes==-1)
+   {
+      fail=1;
+      return;
+   }
+   tokenize(filedes,path);
+   --Q -> count;
+   //free the node
+   QNode *temp=Q->front;
+   Q->front=Q->front->next;
+   free(temp);
 }
 
 LLNodePTR tokenize(int fd_read,char *filename)
@@ -631,7 +690,7 @@ int main(int argc,char* argv[argc+1])
   int direct_threads=1;
   int file_threads=1;
   int analysis_threads=1;
-  char *suffix=".txt";
+  suffix=".txt";
 
   int nondash_arg=0;
   int nondash_start=0;
@@ -739,25 +798,33 @@ int main(int argc,char* argv[argc+1])
   qinit(fileq,0,NULL,NULL);
   for(int x=nondash_start;x<argc;x++)
   {
-    QEnqueue(argv[x], suffix,0);
+      QEnqueue(argv[x], suffix,0);
   }
   QPrint(directq);
   QPrint(fileq);
 
-
-  while(directq->count != 0)
+  pthread_t *dir_tids = malloc(direct_threads*sizeof(pthread_t));
+  while(directq->open != 0)
   {
-    QNode *temp = directq -> front;
-    DirectorySearch(temp, suffix);
-    directq->front = directq->front->next;
-    --directq->count;
-    sb_destroy(temp->path);
-    free(temp->path);
-    free(temp);
+      for(int i=0; i<direct_threads;i++)
+      {
+          pthread_create(&dir_tids[i],NULL,DirQDequeue,NULL);
+      }
+
+      if(activedthreads == 0 && directq->count == 0)
+      {
+          QClose(directq);
+      }
+  }
+  for(int i=0; i<direct_threads;i++)
+  {
+      pthread_join(dir_tids[i],NULL);
   }
   QPrint(directq);
   QPrint(fileq);
   free(directq);
+  free(dir_tids);
+  QFree(); //remove when doing analysis section
   /*
   //analysis section
   int totalfiles = fileq->count;

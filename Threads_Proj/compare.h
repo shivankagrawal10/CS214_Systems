@@ -44,8 +44,8 @@ typedef struct Queue
     QNode *last;
     unsigned count;
     int open;
-	//pthread_mutex_t qlock;
-	//pthread_cond_t read_ready;
+	  pthread_mutex_t qlock;
+	  pthread_cond_t read_ready;
 	//pthread_cond_t write_ready;
 }Queue;
 
@@ -75,12 +75,14 @@ typedef struct finalresult
 
 int qinit(Queue *,int ,QNode *,QNode *);
 void QEnqueue(char *, char*, int);
+void *DirQDequeue(void *);
+void QClose(Queue *);
 void QPrint(Queue *);
-int DirectorySearch(QNode *, char *);
+int DirectorySearch(QNode *);
+void QFree();
 
 
-
-
+void FDequeue();
 LLNodePTR tokenize(int,char *);
 strbuf_t *read_word(strbuf_t *, char, int *);
 int isdirect(char *);
