@@ -60,7 +60,7 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     {
         Q = directq;
     }
-    
+
     if(b_thread)
     {
       pthread_mutex_lock(&Q->qlock);
@@ -94,13 +94,14 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
         pthread_cond_signal(&directq->read_ready);
       }
       pthread_mutex_unlock(&Q->qlock);
-      
+
     }
-    
+
 }
 int wai = 0;
 void *DirQDequeue(void *arg)
 {
+  pthread_mutex_lock(&directq->qlock);
   while(directq->count == 0 && directq->open != 0)
   {
       printf("waiting\n");
@@ -113,11 +114,11 @@ void *DirQDequeue(void *arg)
   //exits when thread receives signal to proceed but still nothing in queue
   if(directq->count == 0)
   {
-      //pthread_mutex_unlock(&directq->qlock);
+      pthread_mutex_unlock(&directq->qlock);
       return NULL;
   }
   ++activedthreads;
-  pthread_mutex_lock(&directq->qlock);
+
 
   QNode *temp = directq -> front;
   QNode *curr = malloc(sizeof(QNode));
@@ -136,7 +137,7 @@ void *DirQDequeue(void *arg)
   sb_destroy(curr->path);
   free(curr->path);
   free(curr);
-  
+
   --activedthreads;
   return NULL;
 }
@@ -793,22 +794,19 @@ int main(int argc,char* argv[argc+1])
   {
       for(int i=0; i<direct_threads;i++)
       {
-        if(activedthreads<direct_threads)
-        {
           pthread_create(&dir_tids[i],NULL,DirQDequeue,NULL);
-        }
       }
-      printf("%d, %d\n",activedthreads, direct_threads);
-      
+      //printf("%d, %d\n",activedthreads, direct_threads);
+      for(int i=0; i<direct_threads;i++)
+      {
+          pthread_join(dir_tids[i],NULL);
+      }
       if(activedthreads == 0 && directq->count == 0)
       {
           QClose(directq);
       }
   }
-  for(int i=0; i<direct_threads;i++)
-  {
-      pthread_join(dir_tids[i],NULL);
-  }
+
   QPrint(directq);
   QPrint(fileq);
   free(directq);
