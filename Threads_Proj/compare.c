@@ -85,8 +85,8 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     }
 
     ++Q -> count;
-    QPrint(directq);
-    QPrint(fileq);
+    //QPrint(directq);
+    //QPrint(fileq);
     if(b_thread)
     {
       if (directq ->count != 0)
@@ -104,12 +104,7 @@ void *DirQDequeue(void *arg)
   pthread_mutex_lock(&directq->qlock);
   while(directq->count == 0 && directq->open != 0)
   {
-      printf("waiting\n");
-      //--activedthreads;
-      ++wai;
-      //QPrint(fileq);
       pthread_cond_wait(&directq->read_ready,&directq->qlock);
-      --wai;
   }
   //exits when thread receives signal to proceed but still nothing in queue
   if(directq->count == 0)
@@ -133,12 +128,12 @@ void *DirQDequeue(void *arg)
   pthread_mutex_unlock(&directq->qlock);
   DirectorySearch(curr);
 
-  sb_print(curr->path);
   sb_destroy(curr->path);
   free(curr->path);
   free(curr);
 
   --activedthreads;
+  //printf("num active: %d\n\n",activedthreads);
   return NULL;
 }
 
@@ -168,14 +163,13 @@ int DirectorySearch(QNode *front)
       sb_init(item_path,10);
       sb_concat(item_path,dir->data);
       sb_concat(item_path,inputfile);
-      sb_print(item_path);
+      //sb_print(item_path);
       QEnqueue(item_path->data,suffix,1);
-      printf("%d\n",wai);
+      //printf("%d\n",wai);
       //printf("REACHED\n");
       sb_destroy(item_path);
       free(item_path);
   }
-  printf("REACHED\n");
   sb_destroy(dir);
   free(dir);
   closedir(directptr);
@@ -796,7 +790,6 @@ int main(int argc,char* argv[argc+1])
       {
           pthread_create(&dir_tids[i],NULL,DirQDequeue,NULL);
       }
-      //printf("%d, %d\n",activedthreads, direct_threads);
       for(int i=0; i<direct_threads;i++)
       {
           pthread_join(dir_tids[i],NULL);
