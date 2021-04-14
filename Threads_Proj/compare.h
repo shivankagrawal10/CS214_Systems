@@ -1,5 +1,5 @@
-#ifndef COMPARE_H
-#define COMPARE_H
+#ifndef STANDARD_H
+#define STANDARD_H
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -11,9 +11,24 @@
 #include <string.h>
 #include <pthread.h>
 #include <math.h>
+#endif
+
+#ifndef STRBUF_H
+#define STRBUF_H
 #include "strbuf.h"
 #endif
 
+/*
+#ifndef LLNODE_H
+#define LLNODE_H
+#include "LLNode.h"
+#endif
+
+#ifndef QNODE_H
+#define QNODE_H
+#include "QNode.h"
+#endif
+*/
 typedef struct LLNode
 {
    strbuf_t *word;
@@ -22,6 +37,7 @@ typedef struct LLNode
    double frequency;
    struct LLNode *next;
 }LLNode;
+
 
 typedef struct LLNode* LLNodePTR;
 
@@ -44,9 +60,8 @@ typedef struct Queue
     QNode *last;
     unsigned count;
     int open;
-	  pthread_mutex_t qlock;
-	  pthread_cond_t read_ready;
-	//pthread_cond_t write_ready;
+    pthread_mutex_t qlock;
+    pthread_cond_t read_ready;
 }Queue;
 
 typedef struct filepair
@@ -73,6 +88,8 @@ typedef struct finalresult
 
 }finalresult;
 
+int suffixcheck(char *,char*);
+
 int qinit(Queue *,int ,QNode *,QNode *);
 void QEnqueue(char *, char*, int);
 void *DirQDequeue(void *);
@@ -81,8 +98,8 @@ void QPrint(Queue *);
 int DirectorySearch(QNode *);
 void QFree();
 
-
 void FDequeue();
+
 LLNodePTR tokenize(int,char *);
 strbuf_t *read_word(strbuf_t *, char, int *);
 int isdirect(char *);
@@ -91,6 +108,7 @@ void * analysis(void *);
 
 LLNodePTR* LLNodeInit(LLNodePTR*,int);
 void LLPrint(LLNodePTR *,int);
+int LLLength(LLNodePTR);
 LLNodePTR SelectionSort(LLNodePTR);
-int suffixcheck(char *,char*);
-void QPrint(Queue *);
+void FreeLL(LLNodePTR *, int);
+

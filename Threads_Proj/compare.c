@@ -580,6 +580,7 @@ int isdirect(char *name)
     return S_ISDIR(data.st_mode);
 }
 
+
 LLNodePTR* LLNodeInit(LLNodePTR* freq_dist,int num_files)
 {
   for (int i=0;i<num_files;i++)

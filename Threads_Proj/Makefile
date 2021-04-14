@@ -9,7 +9,7 @@ compare.o: compare.c
 strbuf.o: strbuf.c
 	$(CC) $(CFLAGS) -c strbuf.c -g
 
-compare: strbuf.o compare.o
+compare: compare.o strbuf.o 
 	$(CC) $(CFLAGS) -o compare strbuf.o compare.o -g -lm
 
 clean:
