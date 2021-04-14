@@ -62,6 +62,7 @@ typedef struct Queue
     int open;
     pthread_mutex_t qlock;
     pthread_cond_t read_ready;
+    //pthread_cond_t thread_ready;
 }Queue;
 
 typedef struct filepair

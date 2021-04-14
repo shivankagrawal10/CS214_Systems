@@ -1,0 +1,22 @@
+AddressSanitizer:DEADLYSIGNAL
+=================================================================
+==6782==ERROR: AddressSanitizer: SEGV on unknown address 0x000000000000 (pc 0x000101aee145 bp 0x70000ccb5fb0 sp 0x70000ccb5ea0 T2)
+==6782==The signal is caused by a READ memory access.
+==6782==Hint: address points to the zero page.
+    #0 0x101aee144 in DirQDequeue compare.c
+    #1 0x7fff2056d94f in _pthread_start (libsystem_pthread.dylib:x86_64+0x694f)
+    #2 0x7fff2056947a in thread_start (libsystem_pthread.dylib:x86_64+0x247a)
+
+==6782==Register values:
+rax = 0x0000000000000000  rbx = 0x000070000ccb6000  rcx = 0x0000000000000000  rdx = 0x0000100000000000  
+rdi = 0x0000603000004810  rsi = 0x0000100000000000  rbp = 0x000070000ccb5fb0  rsp = 0x000070000ccb5ea0  
+ r8 = 0x0000200000000000   r9 = 0x00000fffffffffff  r10 = 0x0000000000000000  r11 = 0xffffffffffffffff  
+r12 = 0x0000000000000000  r13 = 0x0000000000000000  r14 = 0x0000000000000000  r15 = 0x0000000000000000  
+AddressSanitizer can not provide additional info.
+SUMMARY: AddressSanitizer: SEGV compare.c in DirQDequeue
+Thread T2 created by T0 here:
+    #0 0x101b5b78d in wrap_pthread_create (libclang_rt.asan_osx_dynamic.dylib:x86_64h+0x5978d)
+    #1 0x101af427c in main compare.c:798
+    #2 0x7fff20588620 in start (libdyld.dylib:x86_64+0x15620)
+
+==6782==ABORTING

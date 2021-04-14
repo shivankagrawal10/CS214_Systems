@@ -60,7 +60,11 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     {
         Q = directq;
     }
-    //if(b_thread) pthread_mutex_lock(&Q->qlock);
+    
+    if(b_thread)
+    {
+      pthread_mutex_lock(&Q->qlock);
+    }
     strbuf_t* item_path = malloc(sizeof(strbuf_t));
     sb_init(item_path,BUFFSIZE);
     sb_concat(item_path,path_name);
@@ -81,81 +85,58 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     }
 
     ++Q -> count;
+    QPrint(directq);
+    QPrint(fileq);
     if(b_thread)
     {
-      //pthread_mutex_unlock(&Q->qlock);
-      pthread_cond_signal(&Q->read_ready);
+      if (directq ->count != 0)
+      {
+        pthread_cond_signal(&directq->read_ready);
+      }
+      pthread_mutex_unlock(&Q->qlock);
+      
     }
-    /*
-    int directorycheck=isdirect(path_name);
-    //direct
-    if(directorycheck==0)
-    {
-    //countf++;
-        if(frontf==NULL)
-        {
-                frontf=malloc(sizeof(QNode));
-                frontf->path=path_name;
-                frontf->next=NULL;
-                lastf=frontf;
-        }
-       else
-       {
-                QNode*insertf=malloc(sizeof(QNode));
-                insertf->path=path_name;
-                insertf->next=NULL;
-                lastf->next=insertf;
-       }
-    }
-    else if(directorycheck==1)
-    {
-         //countd++;
-         if(frontd==NULL)
-         {
-                 frontd=malloc(sizeof(QNode));
-                 frontd->path=path_name;
-                 frontd->next=NULL;
-                 lastd=frontd;
-         }
-        else
-        {
-                 QNode*insertd=malloc(sizeof(QNode));
-                 insertd->path=path_name;
-                 insertd->next=NULL;
-                 lastd->next=insertd;
-        }
-    }
-    else
-    {
-        fprintf(stderr,"%s"," File/Directory Argument ");
-        //fprintf(stderr,"%d",x-nondash_start+1);
-        fprintf(stderr,"%s","is not a file or directory");
-    }
-    */
+    
 }
-
+int wai = 0;
 void *DirQDequeue(void *arg)
 {
-  pthread_mutex_lock(&directq->qlock);
   while(directq->count == 0 && directq->open != 0)
   {
+      printf("waiting\n");
+      //--activedthreads;
+      ++wai;
+      //QPrint(fileq);
       pthread_cond_wait(&directq->read_ready,&directq->qlock);
+      --wai;
   }
   //exits when thread receives signal to proceed but still nothing in queue
   if(directq->count == 0)
   {
-      pthread_mutex_unlock(&directq->qlock);
+      //pthread_mutex_unlock(&directq->qlock);
       return NULL;
   }
   ++activedthreads;
+  pthread_mutex_lock(&directq->qlock);
+
   QNode *temp = directq -> front;
-  DirectorySearch(temp);
+  QNode *curr = malloc(sizeof(QNode));
+  curr -> path = malloc(sizeof(strbuf_t));
+  sb_init(curr -> path,BUFFSIZE);
+  sb_concat(curr -> path, directq -> front -> path->data);
   directq->front = directq->front->next;
   --directq->count;
   sb_destroy(temp->path);
   free(temp->path);
   free(temp);
   pthread_mutex_unlock(&directq->qlock);
+  DirectorySearch(curr);
+
+  sb_print(curr->path);
+  sb_destroy(curr->path);
+  free(curr->path);
+  free(curr);
+  
   --activedthreads;
   return NULL;
 }
@@ -180,18 +161,20 @@ int DirectorySearch(QNode *front)
   //int count = 0;
   while ((de = readdir(directptr)))
   {
-
       char *inputfile=de->d_name;
       if(strcmp(inputfile,".")==0 || strcmp(inputfile,"..")==0) {continue;}
       strbuf_t* item_path = malloc(sizeof(strbuf_t));
       sb_init(item_path,10);
       sb_concat(item_path,dir->data);
       sb_concat(item_path,inputfile);
-      //sb_print(item_path);
+      sb_print(item_path);
       QEnqueue(item_path->data,suffix,1);
+      printf("%d\n",wai);
+      //printf("REACHED\n");
       sb_destroy(item_path);
       free(item_path);
   }
+  printf("REACHED\n");
   sb_destroy(dir);
   free(dir);
   closedir(directptr);
@@ -684,7 +667,6 @@ void FreeLL(LLNodePTR* LL, int num_files)
 }
 
 
-
 int main(int argc,char* argv[argc+1])
 {
   //User Interface
@@ -703,13 +685,15 @@ int main(int argc,char* argv[argc+1])
       {
          if(current_arg[1]=='d')
          {
-             char temp[strlen(current_arg)-2];
+             char temp[strlen(current_arg)-2 + 1];
              int index=0;
              for(int x=2;x<strlen(current_arg);x++)
              {
                 temp[index]=current_arg[x];
                 index++;
+                if(index == strlen(current_arg)-2) temp[index] = '\0';
              }
+             printf("%s\n",current_arg);
              int temp_val=atoi(temp);
              if(temp_val<=0)
              {
@@ -809,9 +793,13 @@ int main(int argc,char* argv[argc+1])
   {
       for(int i=0; i<direct_threads;i++)
       {
+        if(activedthreads<direct_threads)
+        {
           pthread_create(&dir_tids[i],NULL,DirQDequeue,NULL);
+        }
       }
-
+      printf("%d, %d\n",activedthreads, direct_threads);
+      
       if(activedthreads == 0 && directq->count == 0)
       {
           QClose(directq);
