@@ -13,6 +13,7 @@ int activedthreads=0;
 int activefthreads=0;
 int fail=0;
 int file_index=0;
+int freq_dist_length=10;
 char *suffix;
 
 int suffixcheck(char *pathname,char*suffix)
@@ -26,7 +27,7 @@ int suffixcheck(char *pathname,char*suffix)
         {
             return 0;
         }
-        suffix++;
+        sindex++;
     }
     return 1;
 }
@@ -49,7 +50,7 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     Queue * Q=NULL;
     if(directorycheck==0)
     {
-        if(strstr(path_name,suffix)!=0)
+        if(suffixcheck(path_name,suffix)==1)
         {
           Q = fileq;
         }
@@ -61,13 +62,14 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
         Q = directq;
     }
 
-    if(b_thread)
+    if(b_thread && directorycheck==0)
     {
       pthread_mutex_lock(&Q->qlock);
     }
     strbuf_t* item_path = malloc(sizeof(strbuf_t));
     sb_init(item_path,BUFFSIZE);
     sb_concat(item_path,path_name);
+    printf("Inserted %s\n",item_path->data);
     if(Q->front==NULL)
     {
            Q->front=malloc(sizeof(QNode));
@@ -87,12 +89,9 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     ++Q -> count;
     //QPrint(directq);
     //QPrint(fileq);
-    if(b_thread)
+    if(b_thread && directorycheck==0)
     {
-      if (directq ->count != 0)
-      {
-        pthread_cond_signal(&directq->read_ready);
-      }
+     
       pthread_mutex_unlock(&Q->qlock);
 
     }
@@ -101,10 +100,32 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
 int wai = 0;
 void *DirQDequeue(void *arg)
 {
+  int used=0;
+  while(1)
+  {
+  printf("waiting for lock\n");
   pthread_mutex_lock(&directq->qlock);
+  printf("Received lock\n");
+  int tempnum=activedthreads-1;
+  if(tempnum<=0 && directq->count==0)
+  {
+     pthread_mutex_unlock(&directq->qlock);
+     QClose(directq);
+     QClose(fileq);
+     
+     return NULL;
+  }
+  if(directq->count == 0 && directq->open != 0)
+  {
+    activedthreads--;
+    used=0;
+  }
+
   while(directq->count == 0 && directq->open != 0)
   {
+      printf("Waiting for dir condition\n");
       pthread_cond_wait(&directq->read_ready,&directq->qlock);
+      printf("Received dir condition\n");
   }
   //exits when thread receives signal to proceed but still nothing in queue
   if(directq->count == 0)
@@ -112,10 +133,22 @@ void *DirQDequeue(void *arg)
       pthread_mutex_unlock(&directq->qlock);
       return NULL;
   }
+  if(used==0)
+  {
   ++activedthreads;
-
-
+  used=1;
+  }
+  
+  int currentinq=directq->count;
+  
+  for(int i=0;i<currentinq;i++)
+  {
   QNode *temp = directq -> front;
+  if(temp==NULL)
+  {
+     pthread_mutex_unlock(&directq->qlock);
+     break;
+  }
   QNode *curr = malloc(sizeof(QNode));
   curr -> path = malloc(sizeof(strbuf_t));
   sb_init(curr -> path,BUFFSIZE);
@@ -125,15 +158,23 @@ void *DirQDequeue(void *arg)
   sb_destroy(temp->path);
   free(temp->path);
   free(temp);
-  pthread_mutex_unlock(&directq->qlock);
+  
   DirectorySearch(curr);
+   if (directq ->count != 0)
+    {
+      pthread_cond_signal(&directq->read_ready);
+    }
+  
 
   sb_destroy(curr->path);
   free(curr->path);
   free(curr);
+  pthread_mutex_unlock(&directq->qlock);
+  }
 
-  --activedthreads;
   //printf("num active: %d\n\n",activedthreads);
+  sleep(5);
+  }
   return NULL;
 }
 
@@ -213,8 +254,39 @@ void QFree()
   }
 }
 
-void FDequeue()
+void *FDequeue(void *fargs)
 {
+  while(1)
+  {
+   pthread_mutex_lock(&fileq->qlock);
+   //nothing in there, have to wait
+   while(fileq->count == 0 && fileq->open != 0)
+  {
+      pthread_cond_wait(&fileq->read_ready,&fileq->qlock);
+  }
+  //exits when thread receives signal to proceed but still nothing in queue
+  if(fileq->count == 0)
+  {
+      pthread_mutex_unlock(&fileq->qlock);
+      return NULL;
+  }
+  
+   int currentinfq=fileq->count;
+
+   for(int i=0;i<currentinfq;i++)
+   {
+   //check if need to realloc and do so if need be
+   if(fileq->front==NULL)
+    {
+     break;
+    }
+   if(file_index>=freq_dist_length)
+   {
+       int newsize=2*freq_dist_length;
+       freq_dist = realloc(freq_dist,(sizeof(LLNode*)*newsize)); 
+       freq_dist_length=newsize;
+
+   }
    Queue *Q=fileq;
    QNode *todeq=Q->front;
    char *path=todeq->path->data;
@@ -222,14 +294,31 @@ void FDequeue()
    if(filedes==-1)
    {
       fail=1;
-      return;
+      return NULL;
    }
-   tokenize(filedes,path);
+   LLNodeInit();
+   char *pathtoputin=malloc(strlen(path)+1);
+   for(int x=0;x<strlen(path);x++)
+    {
+        pathtoputin[x]=path[x];
+    }
+    pathtoputin[strlen(path)]='\0';
+   printf("Tokenized %s\n",pathtoputin);
+   tokenize(filedes,pathtoputin);
+   file_index++;
    --Q -> count;
    //free the node
    QNode *temp=Q->front;
    Q->front=Q->front->next;
+   sb_destroy(temp->path);
+   free(temp->path);
    free(temp);
+   }
+   
+   pthread_mutex_unlock(&fileq->qlock);
+   sleep(5);
+  }
+   return NULL;
 }
 
 LLNodePTR tokenize(int fd_read,char *filename)
@@ -325,8 +414,13 @@ LLNodePTR tokenize(int fd_read,char *filename)
     free(buff);
     free(currword);
     current_node = freq_dist[file_index];
+    if(total_words==0)
+    {
+      current_node->name=filename;
+      return freq_dist[file_index];
+    }
     while(current_node != 0){
-      current_node -> frequency = current_node -> occurrences / total_words;
+      current_node -> frequency = (double)(current_node -> occurrences) / (double) (total_words);
       current_node = current_node -> next;
     }
     freq_dist[file_index] = SelectionSort(freq_dist[file_index]);
@@ -342,6 +436,25 @@ strbuf_t* read_word(strbuf_t* currword, char currletter,int *started)
     }
     return currword;
 }
+int cmpfnc(const void *a, const void *b)
+{
+   finalresult *firststruct=*(finalresult**)a;
+   finalresult *secondstruct=*(finalresult**)b;
+   int first=firststruct->commonwords;
+   int second=secondstruct->commonwords;
+   if(first<second)
+   {
+       return 1;
+   }
+   else if(first>second)
+   {
+       return -1;
+   }
+   else
+   {
+      return 0;
+   }
+}
 
 void * analysis(void *anarguments)
 {
@@ -351,11 +464,47 @@ void * analysis(void *anarguments)
    int start=arguments->pairbegin;
    int stop=arguments->pairend;
 
+   if(start==-1 && stop==-1)
+   {
+      pthread_mutex_unlock(&anlock);
+      return NULL;
+   }
+
    for(int b=start;b<=stop;b++)
    {
        int commonwords=0;
        int f1index=parr[b].index1;
        int f2index=parr[b].index2;
+
+       //blank files check
+       LLNode*blankcheck1=freq_dist[f1index];
+       LLNode*blankcheck2=freq_dist[f2index];
+       //both blank
+       if(blankcheck1->word==0 && blankcheck2->word==0)
+       {
+          finalresult *insertfr=malloc(sizeof(finalresult));
+          insertfr->commonwords=0;
+          insertfr->JSD=0.0;
+          insertfr->f1path=freq_dist[f1index]->name;
+          insertfr->f2path=freq_dist[f2index]->name;
+          results[resultsindex]=insertfr;
+          resultsindex++;
+          continue;
+       }
+       //one blank
+       if(blankcheck1->word==0 || blankcheck2->word==0)
+       {
+          finalresult *insertfr=malloc(sizeof(finalresult));
+          insertfr->commonwords=0;
+          insertfr->JSD=sqrt(0.5);
+          insertfr->f1path=freq_dist[f1index]->name;
+          insertfr->f2path=freq_dist[f2index]->name;
+          results[resultsindex]=insertfr;
+          resultsindex++;
+          continue;
+       }
+
+
        LLNode*ptr1=freq_dist[f1index];
        LLNodeMean*fmean=NULL;
        LLNodeMean*fmeanlast=NULL;
@@ -369,7 +518,7 @@ void * analysis(void *anarguments)
           {
              char*secondword=ptr2->word->data;
              //match found
-             if(strncmp(firstword,secondword,strlen(firstword))==0)
+             if((strlen(firstword)==strlen(secondword)) && (strncmp(firstword,secondword,strlen(firstword))==0))
              {
                  double mean=(ptr1->frequency+ptr2->frequency)*0.5;
                  //start mean list
@@ -437,7 +586,7 @@ void * analysis(void *anarguments)
            while(ptr1f2only!=NULL)
            {
               char *f1word=ptr1f2only->word->data;
-              if(strncmp(f2word,f1word,strlen(f2word))==0)
+              if((strlen(f2word)==strlen(f1word)) && (strncmp(f2word,f1word,strlen(f2word))==0))
               {
                   found2=1;
                   break;
@@ -478,7 +627,7 @@ void * analysis(void *anarguments)
           LLNodeMean *mp1=fmean;
           while(mp1!=NULL)
           {
-             if(strncmp(mp1->word,p1->word->data,strlen(mp1->word))==0)
+             if((strlen(mp1->word)==strlen(p1->word->data)) && (strncmp(mp1->word,p1->word->data,strlen(mp1->word))==0))
              {
                  double freq1=p1->frequency;
                  double freqmean=mp1->frequency;
@@ -501,7 +650,7 @@ void * analysis(void *anarguments)
           LLNodeMean *mp2=fmean;
           while(mp2!=NULL)
           {
-             if(strncmp(mp2->word,p2->word->data,strlen(mp2->word))==0)
+             if((strlen(mp2->word)==strlen(p2->word->data)) && (strncmp(mp2->word,p2->word->data,strlen(mp2->word))==0))
              {
                  double freq2=p2->frequency;
                  double freqmean=mp2->frequency;
@@ -522,6 +671,8 @@ void * analysis(void *anarguments)
        insertfr->JSD=jsd;
        insertfr->f1path=freq_dist[f1index]->name;
        insertfr->f2path=freq_dist[f2index]->name;
+       printf("Writing file pair %s and %s to resultsindex %d",insertfr->f1path,insertfr->f2path,resultsindex);
+       printf("\n");
        results[resultsindex]=insertfr;
        resultsindex++;
 
@@ -559,15 +710,12 @@ int isdirect(char *name)
 }
 
 
-LLNodePTR* LLNodeInit(LLNodePTR* freq_dist,int num_files)
+LLNodePTR* LLNodeInit()
 {
-  for (int i=0;i<num_files;i++)
-  {
-    freq_dist[i] = malloc(sizeof(LLNode));
-    freq_dist[i]->word = 0;
-    freq_dist[i]->next = 0;
-  }
-  return freq_dist;
+  freq_dist[file_index] = malloc(sizeof(LLNode));
+    freq_dist[file_index]->word = 0;
+    freq_dist[file_index]->next = 0;
+    return freq_dist;
 }
 
 void LLPrint(LLNodePTR *freq_dist,int num_files)
@@ -668,27 +816,28 @@ int main(int argc,char* argv[argc+1])
   int direct_threads=1;
   int file_threads=1;
   int analysis_threads=1;
+  freq_dist = malloc(sizeof(LLNode*)*10); 
   suffix=".txt";
 
   int nondash_arg=0;
   int nondash_start=0;
+  char *strtemp;
 
   for(int i=1;i<argc;i++)
   {
-      char *current_arg=argv[i];
+       char *current_arg=argv[i];
       if(current_arg[0]=='-')
       {
          if(current_arg[1]=='d')
          {
-             char temp[strlen(current_arg)-2 + 1];
+             char *temp=malloc(strlen(current_arg)-2+1);
              int index=0;
              for(int x=2;x<strlen(current_arg);x++)
              {
                 temp[index]=current_arg[x];
                 index++;
-                if(index == strlen(current_arg)-2) temp[index] = '\0';
              }
-             printf("%s\n",current_arg);
+             temp[strlen(current_arg)-2]='\0';
              int temp_val=atoi(temp);
              if(temp_val<=0)
              {
@@ -696,16 +845,18 @@ int main(int argc,char* argv[argc+1])
                  return EXIT_FAILURE;
              }
              direct_threads=temp_val;
+             free(temp);
          }
          else if(current_arg[1]=='f')
          {
-            char temp[strlen(current_arg)-2];
+             char *temp=malloc(strlen(current_arg)-2+1);
              int index=0;
              for(int x=2;x<strlen(current_arg);x++)
              {
                 temp[index]=current_arg[x];
                 index++;
              }
+             temp[strlen(current_arg)-2]='\0';
              int temp_val=atoi(temp);
              if(temp_val<=0)
              {
@@ -713,16 +864,18 @@ int main(int argc,char* argv[argc+1])
                  return EXIT_FAILURE;
              }
              file_threads=temp_val;
+             free(temp);
          }
          else if(current_arg[1]=='a')
          {
-            char temp[strlen(current_arg)-2];
+             char *temp=malloc(strlen(current_arg)-2+1);
              int index=0;
              for(int x=2;x<strlen(current_arg);x++)
              {
                 temp[index]=current_arg[x];
                 index++;
              }
+             temp[strlen(current_arg)-2]='\0';
              int temp_val=atoi(temp);
              if(temp_val<=0)
              {
@@ -730,6 +883,7 @@ int main(int argc,char* argv[argc+1])
                  return EXIT_FAILURE;
              }
              analysis_threads=temp_val;
+             free(temp);
          }
          else if(current_arg[1]=='s')
          {
@@ -738,14 +892,15 @@ int main(int argc,char* argv[argc+1])
                 suffix="";
                 continue;
              }
-             char temp[strlen(current_arg)-2];
+             strtemp=malloc((strlen(current_arg)-2+1));
              int index=0;
              for(int x=2;x<strlen(current_arg);x++)
              {
-                temp[index]=current_arg[x];
+                strtemp[index]=current_arg[x];
                 index++;
              }
-             suffix=temp;
+             strtemp[strlen(current_arg)-2]='\0';
+             suffix=strtemp;
          }
          else
          {
@@ -784,30 +939,41 @@ int main(int argc,char* argv[argc+1])
   QPrint(fileq);
 
   pthread_t *dir_tids = malloc(direct_threads*sizeof(pthread_t));
-  while(directq->open != 0)
+  pthread_t *fil_tids=malloc(file_threads*sizeof(pthread_t));
+
+  for(int i=0; i<direct_threads;i++)
   {
-      for(int i=0; i<direct_threads;i++)
-      {
           pthread_create(&dir_tids[i],NULL,DirQDequeue,NULL);
-      }
-      for(int i=0; i<direct_threads;i++)
-      {
-          pthread_join(dir_tids[i],NULL);
-      }
-      if(activedthreads == 0 && directq->count == 0)
-      {
-          QClose(directq);
-      }
   }
+  for(int i=0; i<file_threads;i++)
+  {
+          pthread_create(&fil_tids[i],NULL,FDequeue,NULL);
+  }
+
+
+  for(int i=0; i<direct_threads;i++)
+  {
+          pthread_join(dir_tids[i],NULL);
+  }
+  for(int i=0; i<file_threads;i++)
+  {
+          pthread_join(fil_tids[i],NULL);
+  }
+
 
   QPrint(directq);
   QPrint(fileq);
   free(directq);
   free(dir_tids);
-  QFree(); //remove when doing analysis section
-  /*
-  //analysis section
-  int totalfiles = fileq->count;
+   //remove when doing analysis section
+   /*
+   printf("FD Arr\n");
+   for(int i=0;i<file_index;i++)
+   {
+      printf("%s\n",freq_dist[file_index]->name);
+   }
+   */
+  int totalfiles = file_index;
   int totalpairs=(totalfiles*(totalfiles-1))/2;
   filepair *pairsarray=malloc(totalpairs*(sizeof(filepair)));
   int pairsarrindex=0;
@@ -820,18 +986,53 @@ int main(int argc,char* argv[argc+1])
           pairsarrindex++;
       }
   }
-  int pairsperthread=totalpairs/analysis_threads;
-  int remainder=totalpairs%analysis_threads;
-  int firstpairnum=pairsperthread+remainder;
-
-  pthread_t *tids;
-  tids = malloc(analysis_threads * sizeof(pthread_t));
+  //more pairs than threads
   anargs *args;
   args = malloc(analysis_threads * sizeof(anargs));
+  int pairsperthread=0;
+  int remainder=0;
+  int firstpairnum=0;
+  results=malloc(totalpairs*(sizeof(finalresult)));
+  if(totalpairs>=analysis_threads)
+  {
+      pairsperthread=totalpairs/analysis_threads;
+      remainder=totalpairs%analysis_threads;
+      firstpairnum=pairsperthread+remainder;
+      int begin=0;
+      int end=firstpairnum-1;
+      for(int a=0;a<analysis_threads;a++)
+       {
+         args[a].pairsarr=pairsarray;
+         args[a].pairbegin=begin;
+         args[a].pairend=end;
+      
+         begin=end+1;
+         end=end+pairsperthread;
+       }
 
-  int begin=0;
-  int end=firstpairnum-1;
+  }
+  //more threads than pairs
+  else
+  {
+    //1 pair per thread
+    for(int a=0;a<totalpairs;a++)
+       {
+         args[a].pairsarr=pairsarray;
+         args[a].pairbegin=a;
+         args[a].pairend=a;
+       }
+     for(int i=totalpairs;i<analysis_threads;i++)
+     {
+         args[i].pairsarr=pairsarray;
+         args[i].pairbegin=-1;
+         args[i].pairend=-1;
+     }
+  }
 
+  
+  pthread_t *tids;
+  tids = malloc(analysis_threads * sizeof(pthread_t));
+  
   if (pthread_mutex_init(&anlock, NULL) != 0) {
         fprintf(stderr,"%s","\n mutex init has failed\n");
         free(pairsarray);
@@ -839,13 +1040,9 @@ int main(int argc,char* argv[argc+1])
         free(tids);
         return EXIT_FAILURE;
     }
-    results=malloc(totalpairs*(sizeof(finalresult)));
-
+  
   for(int a=0;a<analysis_threads;a++)
   {
-      args[a].pairsarr=pairsarray;
-      args[a].pairbegin=begin;
-      args[a].pairend=end;
       int err=pthread_create(&tids[a], NULL, analysis, &args[a]);
       if(err!=0)
       {
@@ -855,11 +1052,10 @@ int main(int argc,char* argv[argc+1])
          free(tids);
          return EXIT_FAILURE;
       }
-      begin=end+1;
-      end=end+pairsperthread;
+      
   }
   for (int i = 0; i < analysis_threads; ++i) {
-		int errjoin=pthread_join(tids[i], NULL);
+		    int errjoin=pthread_join(tids[i], NULL);
         if(errjoin!=0)
         {
             fprintf(stderr,"%s","pthread_join failed");
@@ -870,12 +1066,13 @@ int main(int argc,char* argv[argc+1])
         }
 
     }
+  
  //sorting and printing final results by commonwords
-  //qsort(results,totalpairs,sizeof(finalresult),cmpfnc);
+  qsort(results,totalpairs,sizeof(finalresult*),cmpfnc);
 
   for(int i=0;i<totalpairs;i++)
   {
-      printf("%f, %s, %s",results[i]->JSD,results[i]->f1path,results[i]->f2path);
+      printf("%f %s %s %d",results[i]->JSD,results[i]->f1path,results[i]->f2path,results[i]->commonwords);
       printf("\n");
   }
 
@@ -884,18 +1081,16 @@ int main(int argc,char* argv[argc+1])
   free(pairsarray);
   free(args);
   free(tids);
-
+  
   //free the resultsarr
   for(int i=0;i<totalpairs;i++)
   {
       free(results[i]);
   }
   free(results);
+  QFree();
 
-  */
-  free(fileq);
-
-
+  FreeLL(freq_dist,file_index);
 
 
 
@@ -919,6 +1114,10 @@ int main(int argc,char* argv[argc+1])
   FreeLL(freq_dist,num_files);
   free(freq_dist);
   */
+  if(fail==1)
 
+{
+  return EXIT_FAILURE;
+}
   return EXIT_SUCCESS;
 }
