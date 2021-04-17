@@ -495,7 +495,26 @@ void * analysis(void *anarguments)
        if(blankcheck1->word==0 || blankcheck2->word==0)
        {
           finalresult *insertfr=malloc(sizeof(finalresult));
-          insertfr->commonwords=0;
+          int wordcount1blank=0;
+
+          if(blankcheck1->word!=0)
+          {
+             while(blankcheck1!=NULL)
+             {
+                wordcount1blank++;
+                blankcheck1=blankcheck1->next;
+             }
+          }
+          else if(blankcheck2->word!=0)
+          {
+             while(blankcheck1!=NULL)
+             {
+                wordcount1blank++;
+                blankcheck1=blankcheck1->next;
+             }
+          }
+
+          insertfr->commonwords=wordcount1blank;
           insertfr->JSD=sqrt(0.5);
           insertfr->f1path=freq_dist[f1index]->name;
           insertfr->f2path=freq_dist[f2index]->name;
@@ -511,6 +530,7 @@ void * analysis(void *anarguments)
        //f1words & common words
        while(ptr1!=NULL)
        {
+          commonwords++;
           char *firstword=ptr1->word->data;
           LLNode*ptr2=freq_dist[f2index];
           int found=0;
@@ -539,7 +559,7 @@ void * analysis(void *anarguments)
                      fmeanlast->next=insert;
                      fmeanlast=insert;
                  }
-                 commonwords++;
+                 
                  found=1;
                  break;
              }
@@ -548,6 +568,7 @@ void * analysis(void *anarguments)
           }
           if(found==0)
           {
+             
               double firstnotfoundmean=0.5*(ptr1->frequency);
               if(fmean==NULL)
                  {
@@ -580,6 +601,7 @@ void * analysis(void *anarguments)
        while(ptr2f2only!=NULL)
 
        {
+           commonwords++;
            char *f2word=ptr2f2only->word->data;
            LLNode *ptr1f2only=freq_dist[f1index];
            int found2=0;
@@ -596,6 +618,7 @@ void * analysis(void *anarguments)
            //if not found, then add
            if(found2==0)
            {
+               
                double secondnotfoundmean=0.5*(ptr2f2only->frequency);
                if(fmean==NULL)
                  {
@@ -798,13 +821,19 @@ void FreeLL(LLNodePTR* LL, int num_files)
   {
     LLNodePTR temp = LL[i];
     LLNodePTR next = 0;
+    int count=0;
     while (temp != 0)
     {
       next = temp -> next;
       free(temp->word->data);
       free(temp->word);
+      if(count==0)
+      {
+      free(temp->name);
+      }
       free(temp);
       temp = next;
+      count++;
     }
   }
 }
@@ -943,7 +972,12 @@ int main(int argc,char* argv[argc+1])
 
   for(int i=0; i<direct_threads;i++)
   {
-          pthread_create(&dir_tids[i],NULL,DirQDequeue,NULL);
+          int err=pthread_create(&dir_tids[i],NULL,DirQDequeue,NULL);
+      if(err!=0)
+      {
+         fprintf(stderr,"%s","pthread_create failed");
+         return EXIT_FAILURE;
+      }
   }
   for(int i=0; i<file_threads;i++)
   {
@@ -965,6 +999,7 @@ int main(int argc,char* argv[argc+1])
   QPrint(fileq);
   free(directq);
   free(dir_tids);
+  free(fil_tids);
    //remove when doing analysis section
    /*
    printf("FD Arr\n");
@@ -975,6 +1010,14 @@ int main(int argc,char* argv[argc+1])
    */
   int totalfiles = file_index;
   int totalpairs=(totalfiles*(totalfiles-1))/2;
+
+  if(totalpairs==0)
+  {
+     printf("Not enough file arguments provided\n");
+     fprintf(stderr,"%s","Not enough file arguments provided\n");
+     return EXIT_FAILURE;
+
+  }
   filepair *pairsarray=malloc(totalpairs*(sizeof(filepair)));
   int pairsarrindex=0;
   for(int i=0;i<totalfiles;i++)
@@ -1062,6 +1105,7 @@ int main(int argc,char* argv[argc+1])
             free(pairsarray);
             free(args);
             free(tids);
+            pthread_mutex_destroy(&anlock);
             return EXIT_FAILURE;
         }
 
@@ -1091,7 +1135,7 @@ int main(int argc,char* argv[argc+1])
   QFree();
 
   FreeLL(freq_dist,file_index);
-
+  free(freq_dist);
 
 
   /*
