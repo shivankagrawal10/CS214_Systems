@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Werror -fsanitize=address
+CFLAGS = -Wall -Werror -fsanitize=address -pthread
 
 all: compare
 

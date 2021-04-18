@@ -99,7 +99,7 @@ void QPrint(Queue *);
 int DirectorySearch(QNode *);
 void QFree();
 
-void FDequeue();
+void *FDequeue(void*);
 
 LLNodePTR tokenize(int,char *);
 strbuf_t *read_word(strbuf_t *, char, int *);
@@ -107,7 +107,7 @@ int isdirect(char *);
 
 void * analysis(void *);
 
-LLNodePTR* LLNodeInit(LLNodePTR*,int);
+LLNodePTR* LLNodeInit();
 void LLPrint(LLNodePTR *,int);
 int LLLength(LLNodePTR);
 LLNodePTR SelectionSort(LLNodePTR);
