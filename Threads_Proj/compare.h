@@ -111,5 +111,5 @@ LLNodePTR* LLNodeInit();
 void LLPrint(LLNodePTR *,int);
 int LLLength(LLNodePTR);
 LLNodePTR SelectionSort(LLNodePTR);
-void FreeLL(LLNodePTR *, int);
-
+//void FreeLL(LLNodePTR *, int);
+void FreeLL();

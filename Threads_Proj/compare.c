@@ -91,7 +91,7 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     //QPrint(fileq);
     if(b_thread && directorycheck==0)
     {
-     
+
       pthread_mutex_unlock(&Q->qlock);
 
     }
@@ -112,7 +112,7 @@ void *DirQDequeue(void *arg)
      pthread_mutex_unlock(&directq->qlock);
      QClose(directq);
      QClose(fileq);
-     
+
      return NULL;
   }
   if(directq->count == 0 && directq->open != 0)
@@ -138,9 +138,9 @@ void *DirQDequeue(void *arg)
   ++activedthreads;
   used=1;
   }
-  
+
   int currentinq=directq->count;
-  
+
   for(int i=0;i<currentinq;i++)
   {
   QNode *temp = directq -> front;
@@ -158,13 +158,13 @@ void *DirQDequeue(void *arg)
   sb_destroy(temp->path);
   free(temp->path);
   free(temp);
-  
+
   DirectorySearch(curr);
    if (directq ->count != 0)
     {
       pthread_cond_signal(&directq->read_ready);
     }
-  
+
 
   sb_destroy(curr->path);
   free(curr->path);
@@ -270,7 +270,7 @@ void *FDequeue(void *fargs)
       pthread_mutex_unlock(&fileq->qlock);
       return NULL;
   }
-  
+
    int currentinfq=fileq->count;
 
    for(int i=0;i<currentinfq;i++)
@@ -283,7 +283,7 @@ void *FDequeue(void *fargs)
    if(file_index>=freq_dist_length)
    {
        int newsize=2*freq_dist_length;
-       freq_dist = realloc(freq_dist,(sizeof(LLNode*)*newsize)); 
+       freq_dist = realloc(freq_dist,(sizeof(LLNode*)*newsize));
        freq_dist_length=newsize;
 
    }
@@ -296,13 +296,14 @@ void *FDequeue(void *fargs)
       fail=1;
       return NULL;
    }
+
    LLNodeInit();
    char *pathtoputin=malloc(strlen(path)+1);
    for(int x=0;x<strlen(path);x++)
-    {
+   {
         pathtoputin[x]=path[x];
-    }
-    pathtoputin[strlen(path)]='\0';
+   }
+   pathtoputin[strlen(path)]='\0';
    printf("Tokenized %s\n",pathtoputin);
    tokenize(filedes,pathtoputin);
    file_index++;
@@ -314,7 +315,7 @@ void *FDequeue(void *fargs)
    free(temp->path);
    free(temp);
    }
-   
+
    pthread_mutex_unlock(&fileq->qlock);
    sleep(5);
   }
@@ -391,11 +392,13 @@ LLNodePTR tokenize(int fd_read,char *filename)
                         new_node->next = 0;
                         new_node->name=filename;
                         if(current_node == 0){
-                          prev_node -> next = new_node;
+                           prev_node -> next = new_node;
                         }
                         else if(current_node->word == 0){
+                          free(current_node);
                           freq_dist[file_index] = new_node;
                         }
+
                       }
                     }
                     //isfirstword=0;
@@ -436,6 +439,7 @@ strbuf_t* read_word(strbuf_t* currword, char currletter,int *started)
     }
     return currword;
 }
+
 int cmpfnc(const void *a, const void *b)
 {
    finalresult *firststruct=*(finalresult**)a;
@@ -559,7 +563,7 @@ void * analysis(void *anarguments)
                      fmeanlast->next=insert;
                      fmeanlast=insert;
                  }
-                 
+
                  found=1;
                  break;
              }
@@ -568,7 +572,7 @@ void * analysis(void *anarguments)
           }
           if(found==0)
           {
-             
+
               double firstnotfoundmean=0.5*(ptr1->frequency);
               if(fmean==NULL)
                  {
@@ -618,7 +622,7 @@ void * analysis(void *anarguments)
            //if not found, then add
            if(found2==0)
            {
-               
+
                double secondnotfoundmean=0.5*(ptr2f2only->frequency);
                if(fmean==NULL)
                  {
@@ -735,7 +739,7 @@ int isdirect(char *name)
 
 LLNodePTR* LLNodeInit()
 {
-  freq_dist[file_index] = malloc(sizeof(LLNode));
+    freq_dist[file_index] = malloc(sizeof(LLNode));
     freq_dist[file_index]->word = 0;
     freq_dist[file_index]->next = 0;
     return freq_dist;
@@ -815,26 +819,34 @@ LLNodePTR SelectionSort(LLNodePTR front)
   return front;
 }
 
-void FreeLL(LLNodePTR* LL, int num_files)
+void FreeLL()
 {
-  for (int i = 0;i < num_files; i++)
+  LLNodePTR temp = 0;
+  LLNodePTR next = 0;
+  for (int i = 0;i < file_index; i++)
   {
-    LLNodePTR temp = LL[i];
-    LLNodePTR next = 0;
+    temp = freq_dist[i];
+    next = 0;
     int count=0;
+    printf("%s\n",temp->name);
     while (temp != 0)
     {
+      //temp = freq_dist[i];
       next = temp -> next;
-      free(temp->word->data);
-      free(temp->word);
+      //printf("%d\n",LLLength(temp));
+      //sb_print(temp->word);
+      sb_destroy(temp->word);
+      //free(temp->word);
       if(count==0)
       {
-      free(temp->name);
+        free(temp->name);
       }
+      free(temp->word);
       free(temp);
       temp = next;
       count++;
     }
+    //free(freq_dist);
   }
 }
 
@@ -845,7 +857,7 @@ int main(int argc,char* argv[argc+1])
   int direct_threads=1;
   int file_threads=1;
   int analysis_threads=1;
-  freq_dist = malloc(sizeof(LLNode*)*10); 
+  freq_dist = malloc(sizeof(LLNode*)*10);
   suffix=".txt";
 
   int nondash_arg=0;
@@ -979,6 +991,7 @@ int main(int argc,char* argv[argc+1])
          return EXIT_FAILURE;
       }
   }
+
   for(int i=0; i<file_threads;i++)
   {
           pthread_create(&fil_tids[i],NULL,FDequeue,NULL);
@@ -1048,7 +1061,7 @@ int main(int argc,char* argv[argc+1])
          args[a].pairsarr=pairsarray;
          args[a].pairbegin=begin;
          args[a].pairend=end;
-      
+
          begin=end+1;
          end=end+pairsperthread;
        }
@@ -1072,10 +1085,10 @@ int main(int argc,char* argv[argc+1])
      }
   }
 
-  
+
   pthread_t *tids;
   tids = malloc(analysis_threads * sizeof(pthread_t));
-  
+
   if (pthread_mutex_init(&anlock, NULL) != 0) {
         fprintf(stderr,"%s","\n mutex init has failed\n");
         free(pairsarray);
@@ -1083,7 +1096,7 @@ int main(int argc,char* argv[argc+1])
         free(tids);
         return EXIT_FAILURE;
     }
-  
+
   for(int a=0;a<analysis_threads;a++)
   {
       int err=pthread_create(&tids[a], NULL, analysis, &args[a]);
@@ -1095,7 +1108,7 @@ int main(int argc,char* argv[argc+1])
          free(tids);
          return EXIT_FAILURE;
       }
-      
+
   }
   for (int i = 0; i < analysis_threads; ++i) {
 		    int errjoin=pthread_join(tids[i], NULL);
@@ -1110,7 +1123,7 @@ int main(int argc,char* argv[argc+1])
         }
 
     }
-  
+
  //sorting and printing final results by commonwords
   qsort(results,totalpairs,sizeof(finalresult*),cmpfnc);
 
@@ -1125,7 +1138,7 @@ int main(int argc,char* argv[argc+1])
   free(pairsarray);
   free(args);
   free(tids);
-  
+
   //free the resultsarr
   for(int i=0;i<totalpairs;i++)
   {
@@ -1134,7 +1147,8 @@ int main(int argc,char* argv[argc+1])
   free(results);
   QFree();
 
-  FreeLL(freq_dist,file_index);
+  FreeLL();
+  //FreeLL(freq_dist,file_index);
   free(freq_dist);
 
 
