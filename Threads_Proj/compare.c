@@ -998,8 +998,8 @@ int main(int argc,char* argv[argc+1])
   }
 
 
-  QPrint(directq);
-  QPrint(fileq);
+  //QPrint(directq);
+  //QPrint(fileq);
   free(directq);
   free(dir_tids);
   free(fil_tids);
