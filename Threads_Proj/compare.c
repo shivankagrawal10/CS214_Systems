@@ -966,8 +966,8 @@ int main(int argc,char* argv[argc+1])
   {
       QEnqueue(argv[x], suffix,0);
   }
-  QPrint(directq);
-  QPrint(fileq);
+  //QPrint(directq);
+  //QPrint(fileq);
 
   pthread_t *dir_tids = malloc(direct_threads*sizeof(pthread_t));
   pthread_t *fil_tids=malloc(file_threads*sizeof(pthread_t));
