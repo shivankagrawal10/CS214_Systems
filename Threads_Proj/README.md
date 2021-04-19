@@ -8,6 +8,9 @@ Shivank Agrawal (sa1461), Ameel Jani (aj580)
 We divided the program into 4 parts: User interface, directory and file queue functionality (sequential), word frequency and analysis functionality (sequential), and threading all the componenets.
 
 ## Testing User Interface ##
+
+
+## Directory and File Queue ##
 Testing Directory and File Queue functionality In this section we built out the methods responsible for searching through subdirectories and adding path names to the file and directory queues. To ensure this was working properly, we tested by feeding the program multi-layered directories. This was to ensure that our method was properly going into directories and adding path names of proper suffix to the queues. To test the queue functionality, we tried adding and removing items in edge cases such as when the queue was empty.
 
 ## Testing WFD and Analysis ##
