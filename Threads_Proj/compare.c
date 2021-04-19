@@ -69,7 +69,7 @@ void QEnqueue(char * path_name, char *suffix, int b_thread)
     strbuf_t* item_path = malloc(sizeof(strbuf_t));
     sb_init(item_path,BUFFSIZE);
     sb_concat(item_path,path_name);
-    printf("Inserted %s\n",item_path->data);
+    //printf("Inserted %s\n",item_path->data);
     if(Q->front==NULL)
     {
            Q->front=malloc(sizeof(QNode));
@@ -103,9 +103,9 @@ void *DirQDequeue(void *arg)
   int used=0;
   while(1)
   {
-  printf("waiting for lock\n");
+  //printf("waiting for lock\n");
   pthread_mutex_lock(&directq->qlock);
-  printf("Received lock\n");
+  //printf("Received lock\n");
   int tempnum=activedthreads-1;
   if(tempnum<=0 && directq->count==0)
   {
@@ -123,9 +123,9 @@ void *DirQDequeue(void *arg)
 
   while(directq->count == 0 && directq->open != 0)
   {
-      printf("Waiting for dir condition\n");
+      //printf("Waiting for dir condition\n");
       pthread_cond_wait(&directq->read_ready,&directq->qlock);
-      printf("Received dir condition\n");
+      //printf("Received dir condition\n");
   }
   //exits when thread receives signal to proceed but still nothing in queue
   if(directq->count == 0)
@@ -204,10 +204,7 @@ int DirectorySearch(QNode *front)
       sb_init(item_path,10);
       sb_concat(item_path,dir->data);
       sb_concat(item_path,inputfile);
-      //sb_print(item_path);
       QEnqueue(item_path->data,suffix,1);
-      //printf("%d\n",wai);
-      //printf("REACHED\n");
       sb_destroy(item_path);
       free(item_path);
   }
@@ -304,7 +301,7 @@ void *FDequeue(void *fargs)
         pathtoputin[x]=path[x];
    }
    pathtoputin[strlen(path)]='\0';
-   printf("Tokenized %s\n",pathtoputin);
+   //printf("Tokenized %s\n",pathtoputin);
    tokenize(filedes,pathtoputin);
    file_index++;
    --Q -> count;
@@ -346,7 +343,6 @@ LLNodePTR tokenize(int fd_read,char *filename)
 	    // Iterating through buffer
 	    for(int i=0; i<num_read; i++)
 	    {
-            //printf("curr letter: %c",buff[i]);
             //adds nonspace char to currword strbuf
             read_word(currword,buff[i],&started);
             //space character
@@ -698,8 +694,8 @@ void * analysis(void *anarguments)
        insertfr->JSD=jsd;
        insertfr->f1path=freq_dist[f1index]->name;
        insertfr->f2path=freq_dist[f2index]->name;
-       printf("Writing file pair %s and %s to resultsindex %d",insertfr->f1path,insertfr->f2path,resultsindex);
-       printf("\n");
+       //printf("Writing file pair %s and %s to resultsindex %d",insertfr->f1path,insertfr->f2path,resultsindex);
+       //printf("\n");
        results[resultsindex]=insertfr;
        resultsindex++;
 
@@ -828,15 +824,10 @@ void FreeLL()
     temp = freq_dist[i];
     next = 0;
     int count=0;
-    printf("%s\n",temp->name);
     while (temp != 0)
     {
-      //temp = freq_dist[i];
       next = temp -> next;
-      //printf("%d\n",LLLength(temp));
-      //sb_print(temp->word);
       sb_destroy(temp->word);
-      //free(temp->word);
       if(count==0)
       {
         free(temp->name);
@@ -846,7 +837,6 @@ void FreeLL()
       temp = next;
       count++;
     }
-    //free(freq_dist);
   }
 }
 
@@ -965,7 +955,7 @@ int main(int argc,char* argv[argc+1])
      fprintf(stderr,"%s","Not enough file arguments provided");
      return EXIT_FAILURE;
   }
-  printf("%d, %d, %d, %s\n",analysis_threads,file_threads,direct_threads,suffix);
+  //printf("%d, %d, %d, %s\n",analysis_threads,file_threads,direct_threads,suffix);
 
   //initial placement of directories and files in queues
   directq = malloc(sizeof(Queue));// need to free
@@ -994,17 +984,17 @@ int main(int argc,char* argv[argc+1])
 
   for(int i=0; i<file_threads;i++)
   {
-          pthread_create(&fil_tids[i],NULL,FDequeue,NULL);
+      pthread_create(&fil_tids[i],NULL,FDequeue,NULL);
   }
 
 
   for(int i=0; i<direct_threads;i++)
   {
-          pthread_join(dir_tids[i],NULL);
+      pthread_join(dir_tids[i],NULL);
   }
   for(int i=0; i<file_threads;i++)
   {
-          pthread_join(fil_tids[i],NULL);
+      pthread_join(fil_tids[i],NULL);
   }
 
 
@@ -1142,40 +1132,17 @@ int main(int argc,char* argv[argc+1])
   //free the resultsarr
   for(int i=0;i<totalpairs;i++)
   {
-      free(results[i]);
+    free(results[i]);
   }
   free(results);
   QFree();
 
   FreeLL();
-  //FreeLL(freq_dist,file_index);
   free(freq_dist);
 
-
-  /*
-  Temporary face holder code to test tokenize and create frequency distribution
-  - needs to do necessary check for valid files and subdirectories
-  - needs to feed file descriptors to tokenize method
-  - num_files: need count of how many files we are working with
-  */
-  /*
-  printf("%d, %d, %d, %s\n",analysis_threads,file_threads,direct_threads,suffix);
-  int num_files = 1;
-  freq_dist = malloc(sizeof(LLNode*)*num_files); //[num_files];
-  freq_dist = LLNodeInit(freq_dist,num_files);
-  // temporary file input
-  int file;
-  int file_index = 0;
-  file = open(argv[2],O_RDONLY);
-  freq_dist[file_index] = tokenize(file,argv[2],file_index,freq_dist);
-  LLPrint(freq_dist,num_files);
-  FreeLL(freq_dist,num_files);
-  free(freq_dist);
-  */
   if(fail==1)
-
-{
-  return EXIT_FAILURE;
-}
+  {
+    return EXIT_FAILURE;
+  }
   return EXIT_SUCCESS;
 }
