@@ -861,18 +861,25 @@ int main(int argc,char* argv[argc+1])
       {
          if(current_arg[1]=='d')
          {
+             int isdecimal=0;
              char *temp=malloc(strlen(current_arg)-2+1);
              int index=0;
              for(int x=2;x<strlen(current_arg);x++)
              {
+                if(current_arg[x]=='.')
+                {
+                  isdecimal=1;
+                }
                 temp[index]=current_arg[x];
                 index++;
              }
              temp[strlen(current_arg)-2]='\0';
              int temp_val=atoi(temp);
-             if(temp_val<=0)
+             if(temp_val<=0 ||isdecimal==1)
              {
                  fprintf(stderr,"%s","Invalid -d argument");
+                 free(temp);
+                 free(freq_dist);
                  return EXIT_FAILURE;
              }
              direct_threads=temp_val;
@@ -880,18 +887,25 @@ int main(int argc,char* argv[argc+1])
          }
          else if(current_arg[1]=='f')
          {
+             int isdecimal=0;
              char *temp=malloc(strlen(current_arg)-2+1);
              int index=0;
              for(int x=2;x<strlen(current_arg);x++)
              {
+                if(current_arg[x]=='.')
+                {
+                  isdecimal=1;
+                }
                 temp[index]=current_arg[x];
                 index++;
              }
              temp[strlen(current_arg)-2]='\0';
              int temp_val=atoi(temp);
-             if(temp_val<=0)
+             if(temp_val<=0 ||isdecimal==1)
              {
                  fprintf(stderr,"%s","Invalid -f argument");
+                 free(temp);
+                 free(freq_dist);
                  return EXIT_FAILURE;
              }
              file_threads=temp_val;
@@ -899,18 +913,25 @@ int main(int argc,char* argv[argc+1])
          }
          else if(current_arg[1]=='a')
          {
+             int isdecimal=0;
              char *temp=malloc(strlen(current_arg)-2+1);
              int index=0;
              for(int x=2;x<strlen(current_arg);x++)
              {
+                if(current_arg[x]=='.')
+                {
+                  isdecimal=1;
+                }
                 temp[index]=current_arg[x];
                 index++;
              }
              temp[strlen(current_arg)-2]='\0';
              int temp_val=atoi(temp);
-             if(temp_val<=0)
+             if(temp_val<=0 || isdecimal==1)
              {
                  fprintf(stderr,"%s","Invalid -a argument");
+                 free(temp);
+                 free(freq_dist);
                  return EXIT_FAILURE;
              }
              analysis_threads=temp_val;
@@ -936,6 +957,7 @@ int main(int argc,char* argv[argc+1])
          else
          {
              fprintf(stderr,"%s","Invalid dash argument");
+             free(freq_dist);             
              return EXIT_FAILURE;
          }
       }
