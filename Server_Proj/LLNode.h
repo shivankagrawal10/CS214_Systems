@@ -20,13 +20,14 @@
 
 typedef struct LLNode
 {
-   strbuf_t *word;
+   strbuf_t *key;
+   strbuf_t *value;
    struct LLNode *next;
 }LLNode;
 
 typedef struct LLNode* LLNodePTR;
 
-LLNodePTR LLNodeInit(LLNodePTR,char*);
+LLNodePTR LLNodeInit(LLNodePTR,char*,char*);
 void LLPrint(LLNodePTR);
 int LLLength(LLNodePTR);
 LLNodePTR SelectionSort(LLNodePTR);

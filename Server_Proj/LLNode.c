@@ -1,11 +1,14 @@
 #include"LLNode.h"
 
-LLNodePTR LLNodeInit(LLNodePTR front,char* word)
+LLNodePTR LLNodeInit(LLNodePTR front,char* key,char *value)
 {
   LLNodePTR temp = malloc(sizeof(LLNode));
-  temp->word = malloc(sizeof(strbuf_t)); //0;
-  sb_init(temp->word,10);
-  sb_concat(temp->word,word);
+  temp->key = malloc(sizeof(strbuf_t)); //0;
+  sb_init(temp->key,10);
+  sb_concat(temp->key,key);
+  temp->value = malloc(sizeof(strbuf_t)); //0;
+  sb_init(temp->value,10);
+  sb_concat(temp->value,value);
   temp->next = front;
   return temp;
 }
@@ -15,7 +18,7 @@ void LLPrint(LLNodePTR front)
   while(front!=0)
   {
     //sb_print(front->word);
-    printf("%s (%zu), ",front->word->data,front->word->used);
+    printf("%s (%zu) -> %s (%zu), ",front->key->data,front->key->used,front->value->data,front->value->used);
     front = front->next;
   }
   printf("\n");
@@ -48,7 +51,7 @@ LLNodePTR SelectionSort(LLNodePTR front)
     }
     while(temp!=0)
     {
-      if(strcmp(min->word->data,temp->word->data)>0)
+      if(strcmp(min->key->data,temp->key->data)>0)
       {
         prev = temp_prev;
         min = temp;
@@ -89,8 +92,10 @@ void FreeLL(LLNodePTR* LL, int num_files)
     while (temp != 0)
     {
       next = temp -> next;
-      free(temp->word->data);
-      free(temp->word);
+      free(temp->key->data);
+      free(temp->key);
+      free(temp->value->data);
+      free(temp->value);
       free(temp);
       temp = next;
     }

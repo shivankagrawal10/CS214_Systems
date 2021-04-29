@@ -6,8 +6,8 @@
 int main()
 {
     LLNodePTR front = 0; //malloc(sizeof(LLNode));
-    front = LLNodeInit(front,"apple");
-    front = LLNodeInit(front,"orange");
+    front = LLNodeInit(front,"fruit","apple");
+    front = LLNodeInit(front,"citrus","orange");
     front = SelectionSort(front);
     LLPrint(front);
 }
