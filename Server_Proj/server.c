@@ -299,6 +299,9 @@ void *respondwork(void *arg)
        LLNodeInit(front,key,value);
        SelectionSort(front);
        
+       fprintf(fout,"OKS\n");
+       fflush(fout);
+       
        
 
     }
