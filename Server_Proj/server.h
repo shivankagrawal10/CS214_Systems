@@ -33,3 +33,11 @@ struct connection {
     socklen_t addr_len;
     int fd;
 };
+
+typedef struct LLNode* LLNodePTR;
+
+LLNodePTR LLNodeInit(LLNodePTR,char*,char*);
+void LLPrint(LLNodePTR);
+int LLLength(LLNodePTR);
+LLNodePTR SelectionSort(LLNodePTR);
+void FreeLL(LLNodePTR *, int);

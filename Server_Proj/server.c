@@ -9,13 +9,119 @@ LLNode* front=NULL;
 
 
 
+//LL methods
+
+LLNodePTR LLNodeInit(LLNodePTR front,char* key,char *value)
+{
+  LLNodePTR temp = malloc(sizeof(LLNode));
+  temp->key = malloc(sizeof(strbuf_t)); //0;
+  sb_init(temp->key,10);
+  sb_concat(temp->key,key);
+  temp->value = malloc(sizeof(strbuf_t)); //0;
+  sb_init(temp->value,10);
+  sb_concat(temp->value,value);
+  temp->next = front;
+  return temp;
+}
+
+void LLPrint(LLNodePTR front)
+{
+  while(front!=0)
+  {
+    //sb_print(front->word);
+    printf("%s (%zu) -> %s (%zu), ",front->key->data,front->key->used,front->value->data,front->value->used);
+    front = front->next;
+  }
+  printf("\n");
+}
+
+int LLLength(LLNodePTR front){
+  int len = 0;
+  while(front != 0)
+  {
+    len ++;
+    front = front -> next;
+  }
+  return len;
+}
+
+LLNodePTR SelectionSort(LLNodePTR front)
+{
+  LLNodePTR temp = front;
+  LLNodePTR min = temp;
+  LLNodePTR curr = 0;
+  LLNodePTR prev = 0;
+  int ll_length = LLLength(front);
+  for (int i = 0; i < ll_length; i++)
+  {
+    LLNodePTR temp_prev = 0;
+    if(curr != 0)
+    {
+      temp = curr->next;
+      min = temp;
+    }
+    while(temp!=0)
+    {
+      if(strcmp(min->key->data,temp->key->data)>0)
+      {
+        prev = temp_prev;
+        min = temp;
+      }
+      temp_prev = temp;
+      temp = temp -> next;
+    }
+    if(curr != 0 && curr -> next == min)
+    {
+       prev = curr;
+       curr = curr -> next;
+       continue;
+    }
+    if(curr == 0 && min != front)
+    {
+      prev -> next = min -> next;
+      curr = min;
+      curr -> next = front;
+      front = curr;
+    }
+    else
+    {
+      prev -> next = min -> next;
+      min -> next = curr -> next;
+      curr -> next = min;
+      curr = min;
+    }
+  }
+  return front;
+}
+
+void FreeLL(LLNodePTR* LL, int num_files)
+{
+  for (int i = 0;i < num_files; i++)
+  {
+    LLNodePTR temp = LL[i];
+    LLNodePTR next = 0;
+    while (temp != 0)
+    {
+      next = temp -> next;
+      free(temp->key->data);
+      free(temp->key);
+      free(temp->value->data);
+      free(temp->value);
+      free(temp);
+      temp = next;
+    }
+  }
+}
+
+
 void *respondwork(void *arg)
 {
+    printf("\nNew connection");
     struct connection *c = (struct connection *) arg;
     int file=c->fd;
     FILE *fin = fdopen(dup(file), "r");  // copy socket & open in read mode
-    FILE *fout = fdopen(file, "w")  // open in write mode
-    char code[3];
+    FILE *fout = fdopen(file, "w");  // open in write mode
+    char*code=malloc(10);
     
     int org=0;
     
@@ -71,7 +177,7 @@ void *respondwork(void *arg)
            char c;
            c=getc(fin);
            //too short
-           if(c==EOF)
+           if(c=='\0' || c==EOF)
            {
                fprintf(fout,"ERR\nLEN\n");
                fflush(fout);
@@ -97,6 +203,10 @@ void *respondwork(void *arg)
                
                 fail=1;
                break;
+           }
+           if(c=='\n' && i==inputlen-1)
+           {
+                continue;
            }
            key[index]=c;
 
@@ -119,6 +229,7 @@ void *respondwork(void *arg)
        {
           if((strlen(ptr->key->data)==inputlen-1) && (strncmp(ptr->key->data,key,inputlen-1)==0))
           {
+              found=1;
               break;
           }
           ptr=ptr->next;
@@ -131,7 +242,7 @@ void *respondwork(void *arg)
        }
        else
        {
-           char *value=ptr->value;
+           char *value=ptr->value->data;
            int bytenum=strlen(value)+1;
            fprintf(fout,"OKG\n%d\n%s\n",bytenum,value);
            fflush(fout);
@@ -150,7 +261,7 @@ void *respondwork(void *arg)
            char c;
            c=getc(fin);
            //too short
-           if(c==EOF)
+           if(c=='\0' || c==EOF)
            {
                fprintf(fout,"ERR\nLEN\n");
                fflush(fout);
@@ -176,6 +287,10 @@ void *respondwork(void *arg)
                
                 fail=1;
                break;
+           }
+           if(c=='\n' && i==inputlen-1)
+           {
+                continue;
            }
            key[index]=c;
           
@@ -203,16 +318,16 @@ void *respondwork(void *arg)
        }
        else
        {
-           char *value=ptr->value;
+           char *value=ptr->value->data;
            int bytenum=strlen(value)+1;
            fprintf(fout,"OKD\n%d\n%s\n",bytenum,value);
            fflush(fout);
 
            //delete it
            prev->next=ptr->next;
-           sb_destroy(ptr->key);
+           free(ptr->key->data);
            free(ptr->key);
-           sb_destroy(ptr->value);
+           free(ptr->value->data);
            free(ptr->value);
            free(ptr);
            
@@ -242,7 +357,7 @@ void *respondwork(void *arg)
           
           //key
           //too short
-           if(c==EOF)
+           if(c=='\0' || c==EOF)
            {
                fprintf(fout,"ERR\nLEN\n");
                fflush(fout);
@@ -266,6 +381,7 @@ void *respondwork(void *arg)
                else
                {
                    iskey=0;
+                   continue;
 
                }
                
@@ -279,6 +395,11 @@ void *respondwork(void *arg)
                
                 fail=1;
                break;
+           }
+           //good-dont do anything
+           if(c=='\n' && i==inputlen-1)
+           {
+                continue;
            }
 
            if(iskey==1)
@@ -301,7 +422,7 @@ void *respondwork(void *arg)
        
        fprintf(fout,"OKS\n");
        fflush(fout);
-       
+
        
 
     }
@@ -336,7 +457,7 @@ int main(int argc,char* argv[argc+1])
     pthread_t tid;
     if(pthread_mutex_init(&connlock,NULL)!=0)
     {
-        fprintf(stderr,"%s","\n mutex init has failed\n");
+        fprintf(stderr,"%s","mutex init has failed\n");
         return EXIT_FAILURE;
     }
 
