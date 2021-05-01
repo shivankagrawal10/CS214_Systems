@@ -36,7 +36,7 @@ struct connection {
 
 typedef struct LLNode* LLNodePTR;
 
-LLNodePTR LLNodeInit(LLNodePTR,char*,char*);
+LLNodePTR LLNodeInit(char*,char*);
 void LLPrint(LLNodePTR);
 int LLLength(LLNodePTR);
 LLNodePTR SelectionSort(LLNodePTR);

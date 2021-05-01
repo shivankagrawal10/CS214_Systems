@@ -11,7 +11,7 @@ LLNode* front=NULL;
 
 //LL methods
 
-LLNodePTR LLNodeInit(LLNodePTR front,char* key,char *value)
+LLNodePTR LLNodeInit(char* key,char *value)
 {
   LLNodePTR temp = malloc(sizeof(LLNode));
   temp->key = malloc(sizeof(strbuf_t)); //0;
@@ -20,7 +20,15 @@ LLNodePTR LLNodeInit(LLNodePTR front,char* key,char *value)
   temp->value = malloc(sizeof(strbuf_t)); //0;
   sb_init(temp->value,10);
   sb_concat(temp->value,value);
+  if(front==NULL)
+  {
+      front=temp;
+      front->next=NULL;
+  }
+  else
+  {
   temp->next = front;
+  }
   return temp;
 }
 
@@ -145,9 +153,14 @@ void *respondwork(void *arg)
        {
            fprintf(fout,"ERR\nBAD\n");
            fflush(fout);
-               
            
-           break;
+           printf("Closing connection");
+           fclose(fin);
+           fclose(fout);
+           pthread_mutex_unlock(&connlock);
+           return NULL;  
+           
+           
        }
 
     
@@ -165,6 +178,11 @@ void *respondwork(void *arg)
         //stop
         fprintf(fout,"ERR\nBAD\n");
         fflush(fout);
+        printf("Closing connection");
+        fclose(fin);
+        fclose(fout);
+        pthread_mutex_unlock(&connlock);
+        return NULL;
     }
     
     //GET
@@ -209,6 +227,7 @@ void *respondwork(void *arg)
                 continue;
            }
            key[index]=c;
+           index++;
 
        }
        if(fail==1)
@@ -218,6 +237,7 @@ void *respondwork(void *arg)
            fclose(fin);
            fclose(fout);
            free(c);
+           pthread_mutex_unlock(&connlock);
            return NULL;
        }
        
@@ -293,6 +313,7 @@ void *respondwork(void *arg)
                 continue;
            }
            key[index]=c;
+           index++;
           
        }
        
@@ -305,6 +326,7 @@ void *respondwork(void *arg)
        {
           if((strlen(ptr->key->data)==inputlen-1) && (strncmp(ptr->key->data,key,inputlen-1)==0))
           {
+              found=1;
               break;
           }
           prev=ptr;
@@ -324,12 +346,25 @@ void *respondwork(void *arg)
            fflush(fout);
 
            //delete it
-           prev->next=ptr->next;
-           free(ptr->key->data);
-           free(ptr->key);
-           free(ptr->value->data);
-           free(ptr->value);
-           free(ptr);
+           if(prev==NULL)
+           {
+               free(ptr->key->data);
+               free(ptr->key);
+               free(ptr->value->data);
+               free(ptr->value);
+               free(ptr);
+               front=NULL;
+           }
+           else
+           {
+               prev->next=ptr->next;
+               free(ptr->key->data);
+               free(ptr->key);
+               free(ptr->value->data);
+               free(ptr->value);
+               free(ptr);
+           }
+           
            
        }
        free(key);
@@ -381,6 +416,7 @@ void *respondwork(void *arg)
                else
                {
                    iskey=0;
+                                    
                    continue;
 
                }
@@ -417,8 +453,10 @@ void *respondwork(void *arg)
        }
 
        //insertat the end
-       LLNodeInit(front,key,value);
-       SelectionSort(front);
+       key[indexk]='\0'; 
+       value[indexv]='\0';
+       LLNodeInit(key,value);
+       //SelectionSort(front);
        
        fprintf(fout,"OKS\n");
        fflush(fout);
@@ -504,7 +542,10 @@ int main(int argc,char* argv[argc+1])
     if (info == NULL) {
         // we reached the end of result without successfuly binding a socket
         fprintf(stderr, "Could not bind\n");
-        return -1;
+        freeaddrinfo(info_list);
+        free(portnum);
+        pthread_mutex_destroy(&connlock);
+        return EXIT_FAILURE;
     }
 
     freeaddrinfo(info_list);
