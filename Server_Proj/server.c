@@ -63,7 +63,8 @@ LLNodePTR SelectionSort(LLNodePTR front)
   int ll_length = LLLength(front);
   for (int i = 0; i < ll_length; i++)
   {
-    LLNodePTR temp_prev = 0;
+    LLNodePTR inner_prev = 0;
+    //use front of remaining unsorted linked list
     if(curr != 0)
     {
       temp = curr->next;
@@ -73,24 +74,31 @@ LLNodePTR SelectionSort(LLNodePTR front)
     {
       if(strcmp(min->key->data,temp->key->data)>0)
       {
-        prev = temp_prev;
+        prev = inner_prev;
         min = temp;
       }
-      temp_prev = temp;
+      inner_prev = temp;
       temp = temp -> next;
     }
+    //if the next is already in correct order
     if(curr != 0 && curr -> next == min)
     {
-       prev = curr;
-       curr = curr -> next;
-       continue;
+      prev = curr;
+      curr = curr -> next;
+      continue;
     }
+    //if first iteration and the front is not the least value
     if(curr == 0 && min != front)
     {
       prev -> next = min -> next;
       curr = min;
       curr -> next = front;
       front = curr;
+    }
+    else if(curr == 0 && min == front)
+    {
+      prev = front;
+      curr = front -> next;
     }
     else
     {
