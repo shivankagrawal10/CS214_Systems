@@ -63,8 +63,7 @@ LLNodePTR SelectionSort(LLNodePTR front)
   int ll_length = LLLength(front);
   for (int i = 0; i < ll_length; i++)
   {
-    LLNodePTR inner_prev = 0;
-    //use front of remaining unsorted linked list
+    LLNodePTR temp_prev = 0;
     if(curr != 0)
     {
       temp = curr->next;
@@ -74,31 +73,24 @@ LLNodePTR SelectionSort(LLNodePTR front)
     {
       if(strcmp(min->key->data,temp->key->data)>0)
       {
-        prev = inner_prev;
+        prev = temp_prev;
         min = temp;
       }
-      inner_prev = temp;
+      temp_prev = temp;
       temp = temp -> next;
     }
-    //if the next is already in correct order
     if(curr != 0 && curr -> next == min)
     {
-      prev = curr;
-      curr = curr -> next;
-      continue;
+       prev = curr;
+       curr = curr -> next;
+       continue;
     }
-    //if first iteration and the front is not the least value
     if(curr == 0 && min != front)
     {
       prev -> next = min -> next;
       curr = min;
       curr -> next = front;
       front = curr;
-    }
-    else if(curr == 0 && min == front)
-    {
-      prev = front;
-      curr = front -> next;
     }
     else
     {
@@ -179,7 +171,7 @@ void *respondwork(void *arg)
     
     //len
     int inputlen;
-    int err2=fscanf(fin, "%d\n", &inputlen);
+    int err2=fscanf(fin, "%d", &inputlen);
     int fail=0;
     //wrong
     if(err2<=0)
@@ -194,7 +186,19 @@ void *respondwork(void *arg)
         pthread_mutex_unlock(&connlock);
         return NULL;
     }
-    
+    char nl1=getc(fin);
+    if(nl1!='\n')
+    {
+        //stop
+        fprintf(fout,"ERR\nBAD\n");
+        fflush(fout);
+        printf("Closing connection");
+        fclose(fin);
+        fclose(fout);
+        free(c);
+        pthread_mutex_unlock(&connlock);
+        return NULL;
+    }
     //GET
     if(org==1)
     {
@@ -240,30 +244,8 @@ void *respondwork(void *arg)
            index++;
 
        }
-       //check if is actually empty
-       int allwhite=1;
-       for(int i=0;i<inputlen-1;i++)
-       {
-           if(isspace(key[i])==0)
-           {
-               allwhite--;
-               break;
-           }
-
-       }
-
-       if(allwhite>0)
-       {
-           fprintf(fout,"ERR\nBAD\n");
-           fflush(fout);
-           printf("Closing connection");
-           fclose(fin);
-           fclose(fout);
-           free(c);
-           free(key);
-           pthread_mutex_unlock(&connlock);
-           return NULL;
-       }
+       
+       
        if(fail==1)
        {
            //close conn and term. thread
@@ -352,29 +334,7 @@ void *respondwork(void *arg)
           
        }
        //check if is actually empty
-       int allwhite=1;
-       for(int i=0;i<inputlen-1;i++)
-       {
-           if(isspace(key[i])==0)
-           {
-               allwhite--;
-               break;
-           }
-
-       }
-
-       if(allwhite>0)
-       {
-           fprintf(fout,"ERR\nBAD\n");
-           fflush(fout);
-           printf("Closing connection");
-           fclose(fin);
-           fclose(fout);
-           free(c);
-           free(key);
-           pthread_mutex_unlock(&connlock);
-           return NULL;
-       }
+       
        if(fail==1)
        {
            //close conn and term. thread
@@ -646,7 +606,7 @@ int main(int argc,char* argv[argc+1])
         fprintf(stderr,"%s","Please make sure the port number is an integer");
         return EXIT_FAILURE;
      }
-     portnum=malloc(strlen(argv[1])+1);
+     
      portnum=argv[1];
 
     struct addrinfo hint, *info_list, *info;
@@ -703,7 +663,7 @@ int main(int argc,char* argv[argc+1])
         // we reached the end of result without successfuly binding a socket
         fprintf(stderr, "Could not bind\n");
         freeaddrinfo(info_list);
-        free(portnum);
+        
         pthread_mutex_destroy(&connlock);
         return EXIT_FAILURE;
     }
