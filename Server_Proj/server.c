@@ -27,7 +27,8 @@ LLNodePTR LLNodeInit(char* key,char *value)
   }
   else
   {
-  temp->next = front;
+     temp->next = front;
+     front=temp;
   }
   return temp;
 }
@@ -181,6 +182,7 @@ void *respondwork(void *arg)
         printf("Closing connection");
         fclose(fin);
         fclose(fout);
+        free(c);
         pthread_mutex_unlock(&connlock);
         return NULL;
     }
@@ -230,6 +232,30 @@ void *respondwork(void *arg)
            index++;
 
        }
+       //check if is actually empty
+       int allwhite=1;
+       for(int i=0;i<inputlen-1;i++)
+       {
+           if(isspace(key[i])==0)
+           {
+               allwhite--;
+               break;
+           }
+
+       }
+
+       if(allwhite>0)
+       {
+           fprintf(fout,"ERR\nBAD\n");
+           fflush(fout);
+           printf("Closing connection");
+           fclose(fin);
+           fclose(fout);
+           free(c);
+           free(key);
+           pthread_mutex_unlock(&connlock);
+           return NULL;
+       }
        if(fail==1)
        {
            //close conn and term. thread
@@ -237,6 +263,7 @@ void *respondwork(void *arg)
            fclose(fin);
            fclose(fout);
            free(c);
+           free(key);
            pthread_mutex_unlock(&connlock);
            return NULL;
        }
@@ -316,6 +343,41 @@ void *respondwork(void *arg)
            index++;
           
        }
+       //check if is actually empty
+       int allwhite=1;
+       for(int i=0;i<inputlen-1;i++)
+       {
+           if(isspace(key[i])==0)
+           {
+               allwhite--;
+               break;
+           }
+
+       }
+
+       if(allwhite>0)
+       {
+           fprintf(fout,"ERR\nBAD\n");
+           fflush(fout);
+           printf("Closing connection");
+           fclose(fin);
+           fclose(fout);
+           free(c);
+           free(key);
+           pthread_mutex_unlock(&connlock);
+           return NULL;
+       }
+       if(fail==1)
+       {
+           //close conn and term. thread
+           printf("Closing connection");
+           fclose(fin);
+           fclose(fout);
+           free(c);
+           free(key);
+           pthread_mutex_unlock(&connlock);
+           return NULL;
+       }
        
        //search through LL for key
        LLNode *ptr=front;
@@ -346,7 +408,7 @@ void *respondwork(void *arg)
            fflush(fout);
 
            //delete it
-           if(prev==NULL)
+           if(prev==NULL && ptr->next==NULL)
            {
                free(ptr->key->data);
                free(ptr->key);
@@ -354,6 +416,16 @@ void *respondwork(void *arg)
                free(ptr->value);
                free(ptr);
                front=NULL;
+           }
+           else if(prev==NULL && ptr->next!=NULL)
+           {
+               front=ptr->next;
+               free(ptr->key->data);
+               free(ptr->key);
+               free(ptr->value->data);
+               free(ptr->value);
+               free(ptr);
+
            }
            else
            {
@@ -451,11 +523,91 @@ void *respondwork(void *arg)
 
 
        }
-
-       //insertat the end
        key[indexk]='\0'; 
        value[indexv]='\0';
-       LLNodeInit(key,value);
+
+       //check if is actually empty
+       int allwhite=2;
+       for(int i=0;i<strlen(key);i++)
+       {
+           if(isspace(key[i])==0)
+           {
+               allwhite--;
+               break;
+           }
+
+       }
+       for(int i=0;i<strlen(value);i++)
+       {
+           if(isspace(value[i])==0)
+           {
+               allwhite--;
+               break;
+           }
+
+       }
+
+       if(allwhite>0)
+       {
+           fprintf(fout,"ERR\nBAD\n");
+           fflush(fout);
+           printf("Closing connection");
+           fclose(fin);
+           fclose(fout);
+           free(c);
+           free(key);
+           free(value);
+           pthread_mutex_unlock(&connlock);
+           return NULL;
+       }
+
+
+       if(fail==1)
+       {
+           //close conn and term. thread
+           printf("Closing connection");
+           fclose(fin);
+           fclose(fout);
+           free(c);
+           free(key);
+           free(value);
+           pthread_mutex_unlock(&connlock);
+           return NULL;
+       }
+
+       //insertat the end
+      
+
+       LLNode *ptr=front;
+       int found=0;
+
+       while(ptr!=NULL)
+       {
+          if((strlen(ptr->key->data)==strlen(key)) && (strncmp(ptr->key->data,key,strlen(key))==0))
+          {
+              found=1;
+              break;
+          }
+          ptr=ptr->next;
+       }
+       //output
+       if(found==0)
+       {
+            LLNodeInit(key,value);
+       }
+       else
+       {
+           free(ptr->value->data);
+           free(ptr->value);
+           ptr->value = malloc(sizeof(strbuf_t)); //0;
+           sb_init(ptr->value,10);
+           sb_concat(ptr->value,value);
+           
+       }
+
+
+
+       
        //SelectionSort(front);
        
        fprintf(fout,"OKS\n");
