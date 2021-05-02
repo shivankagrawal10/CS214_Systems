@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Werror -fsanitize=address -pthread
 
-all: server
+all: temp
 
 server.o: server.c
 	$(CC) $(CFLAGS) -c compare.c -g
