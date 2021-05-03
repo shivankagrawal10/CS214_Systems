@@ -31,4 +31,4 @@ LLNodePTR LLNodeInit(LLNodePTR,char*,char*);
 void LLPrint(LLNodePTR);
 int LLLength(LLNodePTR);
 LLNodePTR SelectionSort(LLNodePTR);
-void FreeLL(LLNodePTR *, int);
+void FreeLL(LLNodePTR );

@@ -6,8 +6,8 @@
 char *portnum;
 pthread_mutex_t connlock;
 LLNode* front=NULL;
-
-
+struct connection *con;
+int serverup = 0;
 
 //LL methods
 
@@ -103,11 +103,9 @@ LLNodePTR SelectionSort(LLNodePTR front)
   return front;
 }
 
-void FreeLL(LLNodePTR* LL, int num_files)
+void FreeLL()
 {
-  for (int i = 0;i < num_files; i++)
-  {
-    LLNodePTR temp = LL[i];
+    LLNodePTR temp = front;
     LLNodePTR next = 0;
     while (temp != 0)
     {
@@ -119,7 +117,7 @@ void FreeLL(LLNodePTR* LL, int num_files)
       free(temp);
       temp = next;
     }
-  }
+  
 }
 
 
@@ -164,7 +162,7 @@ void *respondwork(void *arg)
            
        }
 
-    
+   printf("\n%s, %d\n",code,org); 
     //subsequent message 
     //lock during message receiving  
     pthread_mutex_lock(&connlock);
@@ -173,6 +171,7 @@ void *respondwork(void *arg)
     int inputlen;
     int err2=fscanf(fin, "%d", &inputlen);
     int fail=0;
+    printf("%d\n",inputlen);
     //wrong
     if(err2<=0)
     {
@@ -183,6 +182,7 @@ void *respondwork(void *arg)
         fclose(fin);
         fclose(fout);
         free(c);
+	free(code);
         pthread_mutex_unlock(&connlock);
         return NULL;
     }
@@ -196,6 +196,7 @@ void *respondwork(void *arg)
         fclose(fin);
         fclose(fout);
         free(c);
+	free(code);
         pthread_mutex_unlock(&connlock);
         return NULL;
     }
@@ -254,6 +255,7 @@ void *respondwork(void *arg)
            fclose(fout);
            free(c);
            free(key);
+	   free(code);
            pthread_mutex_unlock(&connlock);
            return NULL;
        }
@@ -592,6 +594,16 @@ void *respondwork(void *arg)
     return NULL;
 }
 
+void siginthandler(int sig)
+{
+    FreeLL(front);
+    //free(con);
+    serverup = 1;
+    printf("Freeing LL and closing server\n");
+    //signal(SIGINT,siginthandler);
+    //return EXIT_SUCCESS;
+    exit(0);
+}
 
 int main(int argc,char* argv[argc+1])
 {
@@ -610,7 +622,7 @@ int main(int argc,char* argv[argc+1])
      portnum=argv[1];
 
     struct addrinfo hint, *info_list, *info;
-    struct connection *con;
+
     int error, sfd;
     pthread_t tid;
     if(pthread_mutex_init(&connlock,NULL)!=0)
@@ -670,11 +682,11 @@ int main(int argc,char* argv[argc+1])
 
     freeaddrinfo(info_list);
 
-
+    //signal(SIGINT,siginthandler);
     printf("Waiting for a connection\n");
-    for (;;) {
+    while(serverup == 0){
     	// create argument struct for child thread
-		con = malloc(sizeof(struct connection));
+        con = malloc(sizeof(struct connection));
         con->addr_len = sizeof(struct sockaddr_storage);
         	// addr_len is a read/write parameter to accept
         	// we set the initial value, saying how much space is available
@@ -694,7 +706,8 @@ int main(int argc,char* argv[argc+1])
         // if we got back -1, it means something went wrong
         if (con->fd == -1) {
             perror("accept");
-            continue;
+	    continue;
+
         }
 
 		// spin off a worker thread to handle the remote connection
@@ -711,7 +724,9 @@ int main(int argc,char* argv[argc+1])
 		// otherwise, detach the thread and wait for the next connection request
         pthread_detach(tid);
     }
-
+   
+ 
+    free(con);
     // never reach here
     return 0;
 
@@ -719,4 +734,5 @@ int main(int argc,char* argv[argc+1])
 
 
 
+   
 }

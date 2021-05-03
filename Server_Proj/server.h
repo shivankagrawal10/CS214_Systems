@@ -14,6 +14,7 @@
 #include <math.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <signal.h>
 #endif
 
 #ifndef STRBUF_H
@@ -40,4 +41,6 @@ LLNodePTR LLNodeInit(char*,char*);
 void LLPrint(LLNodePTR);
 int LLLength(LLNodePTR);
 LLNodePTR SelectionSort(LLNodePTR);
-void FreeLL(LLNodePTR *, int);
+void FreeLL();
+
+void siginthandler(int);

@@ -91,11 +91,9 @@ LLNodePTR SelectionSort(LLNodePTR front)
   return front;
 }
 
-void FreeLL(LLNodePTR* LL, int num_files)
+void FreeLL(LLNodePTR front)
 {
-  for (int i = 0;i < num_files; i++)
-  {
-    LLNodePTR temp = LL[i];
+	LLNodePTR temp = front;
     LLNodePTR next = 0;
     while (temp != 0)
     {
@@ -107,5 +105,5 @@ void FreeLL(LLNodePTR* LL, int num_files)
       free(temp);
       temp = next;
     }
-  }
+
 }
