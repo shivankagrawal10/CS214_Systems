@@ -123,6 +123,7 @@ void FreeLL()
 
 void *respondwork(void *arg)
 {
+    int srvErr = 0;
     printf("New connection\n");
     struct connection *c = (struct connection *) arg;
     int file=c->fd;
@@ -130,6 +131,17 @@ void *respondwork(void *arg)
     FILE *fout = fdopen(file, "w");  // open in write mode
     char*code=malloc(4);
     
+    if(fin == -1 ||code <= 0)
+    {
+        fprintf(fout,"ERR\nSRV\n");
+        fflush(fout);
+        printf("Closing connection");
+        fclose(fin);
+        fclose(fout);
+        free(code);
+        return NULL;
+    }
+
     int org=0;
     
     //new message instr check
@@ -152,15 +164,12 @@ void *respondwork(void *arg)
        {
            fprintf(fout,"ERR\nBAD\n");
            fflush(fout);
-           
            printf("Closing connection");
            fclose(fin);
            fclose(fout);
            free(code);
-           
+           free(c);
            return NULL;  
-           
-           
        }
        char nl=getc(fin);
     if(nl!='\n')
@@ -177,7 +186,7 @@ void *respondwork(void *arg)
         return NULL;
     }
 
-   printf("\n%s, %d\n",code,org); 
+    //printf("Request: %s",code); 
     //subsequent message 
     //lock during message receiving  
     pthread_mutex_lock(&connlock);
@@ -186,7 +195,6 @@ void *respondwork(void *arg)
     int inputlen;
     int err2=fscanf(fin, "%d", &inputlen);
     int fail=0;
-    printf("%d\n",inputlen);
     //wrong
     if(err2<=0)
     {
@@ -219,6 +227,17 @@ void *respondwork(void *arg)
     if(org==1)
     {
        char *key=malloc(inputlen+1);
+       if(key == 0)
+        {
+            fprintf(fout,"ERR\nSRV\n");
+            fflush(fout);
+            printf("Closing connection");
+            fclose(fin);
+            fclose(fout);
+            free(code);
+            free(c);
+            return NULL;
+        }
        int index=0;
        for(int i=0;i<inputlen;i++)
        {
@@ -281,12 +300,23 @@ void *respondwork(void *arg)
 
        while(ptr!=NULL)
        {
-          if((strlen(ptr->key->data)==inputlen-1) && (strncmp(ptr->key->data,key,inputlen-1)==0))
-          {
-              found=1;
-              break;
-          }
-          ptr=ptr->next;
+            if(ptr->key == 0 || ptr->key->data ==0)
+            {
+                fprintf(fout,"ERR\nSRV\n");
+                fflush(fout);
+                printf("Closing connection");
+                fclose(fin);
+                fclose(fout);
+                free(code);
+                free(c);
+                return NULL;
+            }
+            if((strlen(ptr->key->data)==inputlen-1) && (strncmp(ptr->key->data,key,inputlen-1)==0))
+            {
+                found=1;
+                break;
+            }
+            ptr=ptr->next;
        }
        //output
        if(found==0)
@@ -308,7 +338,18 @@ void *respondwork(void *arg)
     //DEL
     else if(org==2)
     {
-       char *key=malloc(inputlen+1);
+        char *key=malloc(inputlen+1);
+        if(key == 0)
+        {
+            fprintf(fout,"ERR\nSRV\n");
+            fflush(fout);
+            printf("Closing connection");
+            fclose(fin);
+            fclose(fout);
+            free(code);
+            free(c);
+            return NULL;
+        }
        int index=0;
        for(int i=0;i<inputlen;i++)
        {
@@ -372,6 +413,17 @@ void *respondwork(void *arg)
 
        while(ptr!=NULL)
        {
+           if(ptr->key == 0 || ptr->key->data ==0)
+            {
+                fprintf(fout,"ERR\nSRV\n");
+                fflush(fout);
+                printf("Closing connection");
+                fclose(fin);
+                fclose(fout);
+                free(code);
+                free(c);            
+                return NULL;
+            }
           if((strlen(ptr->key->data)==inputlen-1) && (strncmp(ptr->key->data,key,inputlen-1)==0))
           {
               found=1;
@@ -438,7 +490,19 @@ void *respondwork(void *arg)
     {
        char *key=malloc(inputlen+1);
        char *value=malloc(inputlen+1);
-
+        if(key == 0 || value ==0)
+        {
+            fprintf(fout,"ERR\nSRV\n");
+            fflush(fout);
+            printf("Closing connection");
+            fclose(fin);
+            fclose(fout);
+            free(code);
+            free(key);
+            free(value);
+            free(c);
+            return NULL;
+        }
        int indexk=0;
        int indexv=0;
 
@@ -571,6 +635,17 @@ void *respondwork(void *arg)
 
        while(ptr!=NULL)
        {
+           if(ptr->key == 0 || ptr->key->data ==0)
+            {
+                fprintf(fout,"ERR\nSRV\n");
+                fflush(fout);
+                printf("Closing connection");
+                fclose(fin);
+                fclose(fout);
+                free(code);
+                free(c);            
+                return NULL;
+            }
           if((strlen(ptr->key->data)==strlen(key)) && (strncmp(ptr->key->data,key,strlen(key))==0))
           {
               found=1;
