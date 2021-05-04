@@ -607,7 +607,7 @@ void *respondwork(void *arg)
 
 
     pthread_mutex_unlock(&connlock);
-    sleep(2);
+    //sleep(2);
     }
     return NULL;
 }
