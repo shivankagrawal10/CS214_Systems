@@ -123,7 +123,7 @@ void FreeLL()
 
 void *respondwork(void *arg)
 {
-    int srvErr = 0;
+    
     printf("New connection\n");
     struct connection *c = (struct connection *) arg;
     int file=c->fd;
@@ -131,7 +131,7 @@ void *respondwork(void *arg)
     FILE *fout = fdopen(file, "w");  // open in write mode
     char*code=malloc(4);
     
-    if(fin == -1 ||code <= 0)
+    if(fin == 0 ||code <= 0)
     {
         fprintf(fout,"ERR\nSRV\n");
         fflush(fout);
