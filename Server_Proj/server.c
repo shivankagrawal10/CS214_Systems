@@ -123,17 +123,17 @@ void FreeLL()
 
 void *respondwork(void *arg)
 {
-    printf("\nNew connection");
+    printf("New connection\n");
     struct connection *c = (struct connection *) arg;
     int file=c->fd;
     FILE *fin = fdopen(dup(file), "r");  // copy socket & open in read mode
     FILE *fout = fdopen(file, "w");  // open in write mode
-    char*code=malloc(10);
+    char*code=malloc(4);
     
     int org=0;
     
     //new message instr check
-    while(fscanf(fin, "%s\n", code)>0)
+    while(fscanf(fin, "%3s", code)>0)
     {
        if(code[0]=='G' && code[1]=='E' && code[2]=='T')
        {
@@ -156,11 +156,26 @@ void *respondwork(void *arg)
            printf("Closing connection");
            fclose(fin);
            fclose(fout);
-           pthread_mutex_unlock(&connlock);
+           free(code);
+           
            return NULL;  
            
            
        }
+       char nl=getc(fin);
+    if(nl!='\n')
+    {
+        //stop
+        fprintf(fout,"ERR\nBAD\n");
+        fflush(fout);
+        printf("Closing connection");
+        fclose(fin);
+        fclose(fout);
+        free(c);
+	    free(code);
+        pthread_mutex_unlock(&connlock);
+        return NULL;
+    }
 
    printf("\n%s, %d\n",code,org); 
     //subsequent message 
@@ -182,7 +197,7 @@ void *respondwork(void *arg)
         fclose(fin);
         fclose(fout);
         free(c);
-	free(code);
+	    free(code);
         pthread_mutex_unlock(&connlock);
         return NULL;
     }
@@ -196,7 +211,7 @@ void *respondwork(void *arg)
         fclose(fin);
         fclose(fout);
         free(c);
-	free(code);
+	    free(code);
         pthread_mutex_unlock(&connlock);
         return NULL;
     }
@@ -255,7 +270,7 @@ void *respondwork(void *arg)
            fclose(fout);
            free(c);
            free(key);
-	   free(code);
+	       free(code);
            pthread_mutex_unlock(&connlock);
            return NULL;
        }
@@ -345,6 +360,7 @@ void *respondwork(void *arg)
            fclose(fout);
            free(c);
            free(key);
+           free(code);
            pthread_mutex_unlock(&connlock);
            return NULL;
        }
@@ -527,6 +543,7 @@ void *respondwork(void *arg)
            free(c);
            free(key);
            free(value);
+           free(code);
            pthread_mutex_unlock(&connlock);
            return NULL;
        }
@@ -541,6 +558,7 @@ void *respondwork(void *arg)
            free(c);
            free(key);
            free(value);
+           free(code);
            pthread_mutex_unlock(&connlock);
            return NULL;
        }
