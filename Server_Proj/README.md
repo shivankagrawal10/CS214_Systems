@@ -16,7 +16,11 @@ Checking the server involved verifying if the server was working, checking that 
 Primary testing involved verifying that key pair values were properly allocated to memory and that the the nodes were linked proplerly. We tested these in a separate file just to ensure functionality. Testing this involved inserting, deleting, and sorting multiple key pair values. We varied the lengths of the key pair string values to ensure that we were able to accommodate for long string inputs.
 
 # Threading #
+In order to test the functionality of the multithreading and locks present in our code, we first started the server up on one machine and then connected to that server using netcat from several other machines. We then entered in client messages concurrently from multiple clients. We then checked to make sure the different threads (representing different client connections) modified the Linked List structure in a deterministic way. We also checked to make sure our program didn't experience a deadlock at any point. We ran the server code executable using gdb to more closely verify this. 
 
 # Message Error Checking #
-- get, del, set, oks, knf
-- err bad, err len, err svr
+We entered several messages as the client to the server in order to test our program's recognition of improperly formatted messages. We made sure that for GET and DEL messages, the server would send "KNF" to the client if the specified key was not present in the Linked List Data Structure. 
+
+Additionally, we tested if our program would recognize and report ERR BAD if the first line of the message was something other than SET, GET, or DEL followed by a \n. We also tested if our program would recognize and report ERR BAD if the 2nd line of the client message was anything other than a number followed by \n. We also tested if the program would recognize and report ERR LEN if the payload message (including the \n statements) length was not exactly equal to the specified payload length in the 2nd line. We also made sure to report ERR BAD if the payload for a GET or DEL message only consisted of "" or \n and if any of the 2 fields for a SET message only equaled "" or \n. Furthermore, we made sure that the program reported ERR SRV to the client if any of the pthread, pthread_mutex, or malloc functions in the thread function for that client failed. 
+
+Finally, we made sure to test using gdb and printf statements whether the server terminated the connection to the specific client whose inputs forced the program to report the errors to the client. 
